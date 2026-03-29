@@ -1,0 +1,31 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from app.domain.customer import Customer
+
+
+@dataclass(frozen=True)
+class PromoRules:
+    first_order_only: bool = False
+    max_uses_per_customer: int = 999
+    cooldown_days: int = 0
+    campaign_budget: float | None = None
+
+
+def promo_eligible(
+    customer: Customer,
+    current_day: int,
+    rules: PromoRules,
+    cumulative_discount_spend: float,
+) -> bool:
+    if rules.campaign_budget is not None and cumulative_discount_spend >= rules.campaign_budget:
+        return False
+    if rules.first_order_only and customer.purchase_count > 0:
+        return False
+    if customer.promo_uses_to_date >= rules.max_uses_per_customer:
+        return False
+    if rules.cooldown_days > 0 and customer.last_promo_day is not None:
+        if current_day - customer.last_promo_day < rules.cooldown_days:
+            return False
+    return True

@@ -1,0 +1,130 @@
+:root {
+  --text: #3d3a45;
+  --text-muted: #6b6575;
+  --text-h: #1a1724;
+  --bg: #f6f4f8;
+  --panel: #ffffff;
+  --border: #dcd7e0;
+  --sidebar: #1e1b29;
+  --sidebar-text: #e8e4f0;
+  --sidebar-muted: #9d96ad;
+  --accent: #5c4d9d;
+  --accent-hover: #4a3d82;
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+  font: 15px/1.45 var(--sans);
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #c9c4d1;
+    --text-muted: #8f889c;
+    --text-h: #f2eef9;
+    --bg: #121018;
+    --panel: #1c1824;
+    --border: #342f40;
+    --sidebar: #0d0b12;
+    --sidebar-text: #e8e4f0;
+    --sidebar-muted: #7a7388;
+    --accent: #9b8fd4;
+    --accent-hover: #b5abf0;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: 1.35rem;
+}
+h2 {
+  font-size: 1.1rem;
+}
+h3 {
+  font-size: 0.95rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+button,
+.btn {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+}
+button:hover,
+.btn:hover {
+  background: var(--accent-hover);
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+input,
+select {
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  width: 100%;
+}
+
+label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.error {
+  color: #c43a3a;
+  font-size: 0.85rem;
+}

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: pricing-simulator-api
+    runtime: python
+    buildCommand: pip install . && cd frontend && npm install && npm run build
+    startCommand: sh scripts/start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pricing-simulator-db
+          property: connectionString
+      - key: CORS_ORIGINS
+        sync: false
+      - key: STATIC_DIR
+        value: frontend/dist
+
+databases:
+  - name: pricing-simulator-db
+    databaseName: pricing_simulator
+    user: pricing
