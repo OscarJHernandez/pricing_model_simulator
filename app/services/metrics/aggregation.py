@@ -1,9 +1,12 @@
+"""Build per-day aggregate metric dicts stored as JSON on daily aggregate rows."""
+
 from __future__ import annotations
 
-from typing import Any
+from app.schemas.day_metrics import DayMetrics
 
 
-def empty_metrics() -> dict[str, Any]:
+def empty_metrics() -> DayMetrics:
+    """Return a metrics dict with numeric zeros suitable for mutation."""
     return {
         "customers_evaluated": 0,
         "orders": 0,
@@ -43,7 +46,8 @@ def build_day_metrics(
     incremental_revenue: float,
     incremental_margin: float,
     non_incremental_discount_spend: float,
-) -> dict[str, Any]:
+) -> DayMetrics:
+    """Fill ratio and rate fields from raw counters for one aggregate bucket."""
     m = empty_metrics()
     m["customers_evaluated"] = customers_evaluated
     m["orders"] = orders

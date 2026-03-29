@@ -23,13 +23,13 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
    pip install -e ".[dev]"
    ```
 
-3. Start PostgreSQL (example with Docker):
+3. Start PostgreSQL (example with Docker). Compose maps Postgres to host port **5433** so it does not clash with a local Postgres on **5432**.
 
    ```bash
    docker compose up -d
    ```
 
-4. Copy `.env.example` to `.env` and adjust `DATABASE_URL` if needed.
+4. Copy `.env.example` to `.env` and adjust `DATABASE_URL` if needed (defaults to `localhost:5433` with user `pricing`).
 
 5. Run migrations:
 
@@ -49,7 +49,31 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
 - **Frontend (dev):** `cd frontend && npm run dev` — Vite proxies `/api` to `http://127.0.0.1:8000`  
 - **Production-style API + built UI:** build the frontend (`cd frontend && npm run build`), set `STATIC_DIR=frontend/dist` in `.env`, then start Uvicorn as above  
 - **Migrations:** `alembic revision --autogenerate -m "message"` (when models change) then `alembic upgrade head`  
-- **Notebooks:** from repo root with venv active and `pip install -e .`, open files under `notebooks/` in Jupyter  
+- **Quick analysis (recommended first run):** `python scripts/quick_analysis.py` — runs a full simulation and prints P&L, CLV calibration, and next-step pointers. Accepts `--seed N`, `--customers N`, `--horizon N`, `--clv-validation-days N`.  
+- **Notebooks:** from repo root with venv active and `pip install -e .`, open files under `notebooks/` in Jupyter. Start with `01_model_reference.ipynb` → `02_simulation_and_metrics.ipynb` → `03_ab_and_clv.ipynb`. See `notebooks/README.md` for full instructions.
+
+## Notebook roles
+
+| Notebook | Role |
+|----------|------|
+| `01_model_reference.ipynb` | **Model reference (Part 1)** — §0–5: RunConfig parameters, cohort distributions, purchase probability formula, temporal/geo multipliers, promo eligibility. No database needed. |
+| `02_simulation_and_metrics.ipynb` | **Simulation run (Part 2)** — §6–9: full simulation run, baseline vs experiment phase comparison, incrementality via shared-draw design, metric field reference. Requires PostgreSQL. |
+| `03_ab_and_clv.ipynb` | **Analysis & CLV (Part 3)** — §10–12: A/B delivery fee sensitivity sweeps, customer journey traces, CLV validation (predicted vs actual). Requires PostgreSQL. |
+| `customer_model_validation.ipynb` | **Regression test** — assertion-based validation of `compute_purchase_probability` and Bernoulli draws. No database needed. Run after changes to `app/domain/customer.py`. |
+| `repeat_purchase_validation.ipynb` | **Behavioural test** — multi-day loop verifying retention score accumulation and decay. No database needed. Run after changes to retention logic. |
+| `ab_test_analysis.ipynb` | **Experiment analysis** — delivery fee sensitivity, incremental lift, and revenue trade-off charts across multiple A/B runs. Requires PostgreSQL. |
+
+All notebooks import `app` modules directly (no duplicate logic). They share the same `DATABASE_URL` env var as the API when a live database is needed.  
+
+## Code quality (Python)
+
+With `pip install -e ".[dev]"` you get **Ruff** (lint + format) and **Mypy** (types, with the SQLAlchemy plugin). From the repo root:
+
+- **Lint:** `ruff check app tests`
+- **Format:** `ruff format app tests` (check-only: `ruff format app tests --check`)
+- **Types:** `mypy app tests`
+
+Alembic revision files under `alembic/versions/` are excluded from Ruff/Mypy to keep migration noise low.
 
 ## Layout
 
@@ -58,14 +82,24 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
 | `app/main.py` | FastAPI app, CORS, optional static SPA mount |
 | `app/api/routes/` | HTTP API (`/api/runs`, …) |
 | `app/models/` | SQLAlchemy ORM tables |
-| `app/domain/customer.py` | In-memory `Customer` used by the engine |
-| `app/services/simulation/engine.py` | Daily loop, persistence of outcomes |
+| `app/models/customer_lifetime.py` | `CustomerLifetimeRow` — per-customer lifetime stats, predicted CLV, holdout validation revenue |
+| `app/domain/customer.py` | In-memory `Customer` — purchase probability, churn hazard, predictive CLV formula |
+| `app/services/simulation/engine.py` | Daily loop: churn draws, purchase decisions, CLV snapshot, optional validation extension, persistence |
 | `app/services/pricing/` | Policies, temporal/geo multipliers, promo rules |
 | `app/services/metrics/` | Aggregate metric dicts |
-| `app/schemas/run_config.py` | Pydantic run configuration (API + engine) |
-| `notebooks/` | Validation notebooks (import `app`, no duplicate logic) |
+| `app/schemas/run_config.py` | Pydantic run configuration (API + engine) — includes CLV fields |
+| `app/schemas/day_metrics.py` | `DayMetrics` TypedDict for aggregate JSONB |
+| `app/schemas/api_responses.py` | Pydantic response models for `/api/runs` — includes `CustomerLTVOut` |
+| `notebooks/01_model_reference.ipynb` | §0–5 narrative: RunConfig, cohort distributions, purchase probability, temporal/geo context, promo eligibility (no DB) |
+| `notebooks/02_simulation_and_metrics.ipynb` | §6–9 narrative: full simulation run, phase analysis, incrementality, metric field reference (requires DB) |
+| `notebooks/03_ab_and_clv.ipynb` | §10–12 narrative: A/B comparison, customer journeys, CLV validation (requires DB) |
+| `notebooks/customer_model_validation.ipynb` | Unit assertions on `compute_purchase_probability` and Bernoulli sampling |
+| `notebooks/repeat_purchase_validation.ipynb` | Multi-day retention decay behavioural sanity check |
+| `notebooks/ab_test_analysis.ipynb` | A/B experiment analysis and delivery fee sensitivity charts |
+| `notebooks/README.md` | Execution instructions, notebook index, and model changelog |
 | `frontend/` | React workbench |
 | `alembic/versions/` | Schema migrations |
+| `scripts/quick_analysis.py` | One-command quickstart: run a simulation and print P&L, CLV calibration, churn summary |
 | `scripts/start.sh` | Render/local: migrate then Uvicorn |
 
 ## Non-negotiables (from product spec)
@@ -78,11 +112,32 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
 - UI is a **left-aligned workbench** (sidebar + main panels), not a centered marketing layout.  
 - Target deployment uses **PostgreSQL** (e.g. Render).  
 
+## Customer lifetime revenue model
+
+The CLV model lives entirely in `app/domain/customer.py` and `app/services/simulation/engine.py`. Key design decisions:
+
+- **Churn hazard:** `p_churn = churn_base_rate × max(0, 2.0 − retention_score)`. At high retention (score ≥ 2.0) churn probability is zero; at the floor (score = 1.0) it equals `churn_base_rate`. Default 0.2%/day.  
+- **Predictive CLV formula (discounted geometric survival):**  
+  `CLV = daily_rev × s × (1 − s^N) / (1 − s)` where `s = (1 − p_churn) × (1 − r/365)` and `N = clv_projected_days`. Computed at end of horizon using each customer's own `basket_mean` as the basket subtotal (not the deprecated `baseline_order_price`).  
+- **Holdout validation:** set `clv_validation_days > 0` in `RunConfig`. The engine runs that many extra days at baseline pricing (no experiment arms, no churn draws) and stores actual revenue per customer in `CustomerLifetimeRow.actual_clv_validation_revenue`. This is what §12 of the walkthrough notebook uses for the calibration charts.  
+- **`customer_lifetime` table** stores: `total_orders`, `total_net_revenue`, `total_contribution_margin`, `days_active`, `churned_day`, `predicted_clv`, `actual_clv_validation_revenue`.  
+- **API:** `GET /api/runs/{id}/customer-ltv` with optional `?location_zone=` filter.  
+
+`RunConfig` CLV fields (all optional, safe defaults):
+
+| Field | Default | Meaning |
+|-------|---------|---------|
+| `churn_base_rate` | `0.002` | Daily churn hazard at floor retention |
+| `clv_projected_days` | `90` | Forward horizon for predictive CLV |
+| `discount_rate_annual` | `0.10` | Annual discount rate for DCF |
+| `clv_validation_days` | `0` | Extra days run after horizon to collect actuals (0 = disabled) |
+
 ## Conventions
 
 - New HTTP handlers go under `app/api/routes/` and stay thin; simulation logic stays in `app/services/`.  
-- Schema changes: update ORM models, add an Alembic revision, keep `alembic/env.py` imports in sync with models.  
+- Schema changes: update ORM models, add an Alembic revision, keep `alembic/env.py` imports and `app/models/__init__.py` in sync with models.  
 - `DATABASE_URL` on hosts that expose `postgresql://` is normalized to `postgresql+psycopg://` in `app/db/session.py` and `alembic/env.py`.  
+- CLV validation days are **not** written to `daily_aggregate` or `daily_customer_outcomes` — they exist solely for CLV calibration. Do not add logging or aggregate writes inside the validation extension loop.  
 
 ## Deployment (Render)
 

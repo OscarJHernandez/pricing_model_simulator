@@ -1,4 +1,5 @@
 from app.models.customer import CustomerRow
+from app.models.customer_lifetime import CustomerLifetimeRow
 from app.models.daily_aggregate import DailyAggregateRow
 from app.models.daily_customer_outcome import DailyCustomerOutcomeRow
 from app.models.experiment_assignment import ExperimentAssignmentRow
@@ -10,6 +11,7 @@ __all__ = [
     "SimulationRunRow",
     "RunParameterRow",
     "CustomerRow",
+    "CustomerLifetimeRow",
     "ExperimentAssignmentRow",
     "DailyCustomerOutcomeRow",
     "DailyAggregateRow",

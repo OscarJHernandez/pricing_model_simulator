@@ -1,3 +1,5 @@
+"""FastAPI entrypoint: API routes, CORS, and optional static hosting of the React build."""
+
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -25,6 +27,7 @@ app.include_router(api_router, prefix="/api")
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
+    """Liveness probe for load balancers and local checks."""
     return {"status": "ok"}
 
 

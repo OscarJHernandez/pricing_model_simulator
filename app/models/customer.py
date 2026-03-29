@@ -9,9 +9,7 @@ from app.db.base import Base
 
 class CustomerRow(Base):
     __tablename__ = "customers"
-    __table_args__ = (
-        UniqueConstraint("run_id", "customer_index", name="uq_customers_run_index"),
-    )
+    __table_args__ = (UniqueConstraint("run_id", "customer_index", name="uq_customers_run_index"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     run_id: Mapped[uuid.UUID] = mapped_column(
@@ -36,3 +34,4 @@ class CustomerRow(Base):
     assignment = relationship(
         "ExperimentAssignmentRow", back_populates="customer_row", uselist=False
     )
+    lifetime = relationship("CustomerLifetimeRow", back_populates="customer_row", uselist=False)

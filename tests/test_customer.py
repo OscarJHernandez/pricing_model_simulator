@@ -19,11 +19,9 @@ def test_over_budget_zero_probability():
 
 
 def test_returning_easier_than_new():
-    rng = np.random.default_rng(0)
+    np.random.default_rng(0)
     ctx = PurchaseContext(1.0, 1.0, True)
-    new = Customer(
-        1, 0, 50.0, 0.25, 30.0, 0.4, 18.0, "A"
-    )
+    new = Customer(1, 0, 50.0, 0.25, 30.0, 0.4, 18.0, "A")
     ret = Customer(
         2,
         1,

@@ -1,11 +1,11 @@
 import uuid
-from typing import Any
 
 from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.schemas.day_metrics import DayMetrics
 
 
 class DailyAggregateRow(Base):
@@ -32,6 +32,6 @@ class DailyAggregateRow(Base):
     phase: Mapped[str] = mapped_column(String(16), nullable=False)
     treatment: Mapped[str | None] = mapped_column(String(32), nullable=True)
     location_zone: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    metrics: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    metrics: Mapped[DayMetrics] = mapped_column(JSONB, nullable=False)
 
     run = relationship("SimulationRunRow", back_populates="daily_aggregates")

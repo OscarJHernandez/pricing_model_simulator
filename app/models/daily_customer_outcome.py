@@ -10,9 +10,7 @@ from app.db.base import Base
 class DailyCustomerOutcomeRow(Base):
     __tablename__ = "daily_customer_outcomes"
     __table_args__ = (
-        UniqueConstraint(
-            "run_id", "day", "customer_id", name="uq_outcome_run_day_customer"
-        ),
+        UniqueConstraint("run_id", "day", "customer_id", name="uq_outcome_run_day_customer"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -39,15 +37,9 @@ class DailyCustomerOutcomeRow(Base):
     discount_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     net_revenue: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     variable_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    contribution_margin: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.0
-    )
-    incremental_order: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
-    counterfactual_would_buy: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    contribution_margin: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    incremental_order: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    counterfactual_would_buy: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     run = relationship("SimulationRunRow", back_populates="daily_outcomes")
     customer_row = relationship("CustomerRow", back_populates="outcomes")

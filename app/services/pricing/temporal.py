@@ -1,3 +1,6 @@
+"""Simple calendar multipliers (weekend vs weekday plus mild seasonality)."""
+
+
 def temporal_multiplier(
     day: int,
     *,
@@ -15,5 +18,6 @@ def temporal_multiplier(
 
 
 def is_weekend(day: int) -> bool:
+    """True when simulated day index maps to Saturday or Sunday (day 1 = Monday)."""
     dow = (day - 1) % 7
     return dow >= 5

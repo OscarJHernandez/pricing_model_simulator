@@ -21,7 +21,41 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["httpx>=0.28.0", "pytest>=8.0.0", "ipykernel>=6.29.0", "jupyter>=1.1.0"]
+dev = [
+  "httpx>=0.28.0",
+  "pytest>=8.0.0",
+  "ipykernel>=6.29.0",
+  "jupyter>=1.1.0",
+  "ruff>=0.8.0",
+  "mypy>=1.13.0",
+  "statsmodels>=0.14.0",
+  "scipy>=1.13.0",
+  "matplotlib>=3.9.0",
+  "seaborn>=0.13.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+# FastAPI injects dependencies via Depends() in parameter defaults.
+[tool.ruff.lint.per-file-ignores]
+"app/api/routes/**/*.py" = ["B008"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+no_implicit_optional = true
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+exclude = ["alembic/versions/"]
+
+[[tool.mypy.overrides]]
+module = "alembic.*"
+ignore_errors = true
 
 [tool.setuptools.packages.find]
 where = ["."]
