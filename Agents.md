@@ -2,6 +2,8 @@
 
 This repository implements the MVP described in `pricing_simulator_tech_spec_concise_v4.txt`: a stochastic, customer-level pricing simulator with baseline and experiment phases, PostgreSQL persistence, FastAPI, a React workbench UI, and validation notebooks.
 
+**Orientation (any reader):** [`README.md`](README.md) has the 5-minute checklist and full local setup. [`docs/quickstart.md`](docs/quickstart.md) is a short “choose your path” guide (UI vs CLI vs notebooks vs batch/inference). [`docs/pricing-model.md`](docs/pricing-model.md) explains how basket, fees, promos, and purchase probability are implemented. [`docs/mathematical-models.md`](docs/mathematical-models.md) states the same models in equation form (CLV, demand, churn, cohort draws, Wilson / z-test, Beta–binomial Bayesian inference). Spec deltas vs code: [`docs/spec-mapping.md`](docs/spec-mapping.md).
+
 ## Stack
 
 - **Backend:** Python 3.11+, FastAPI, Uvicorn, SQLAlchemy 2, Alembic, PostgreSQL (psycopg3), NumPy/Pandas  
@@ -50,7 +52,7 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
 - **Production-style API + built UI:** build the frontend (`cd frontend && npm run build`), set `STATIC_DIR=frontend/dist` in `.env`, then start Uvicorn as above  
 - **Migrations:** `alembic revision --autogenerate -m "message"` (when models change) then `alembic upgrade head`  
 - **Quick analysis (recommended first run):** `python scripts/quick_analysis.py` — runs a full simulation and prints P&L, CLV calibration, and next-step pointers. Accepts `--seed N`, `--customers N`, `--horizon N`, `--clv-validation-days N`.  
-- **Notebooks:** from repo root with venv active and `pip install -e .`, open files under `notebooks/` in Jupyter. Start with `01_model_reference.ipynb` → `02_simulation_and_metrics.ipynb` → `03_ab_and_clv.ipynb`. See `notebooks/README.md` for full instructions.
+- **Notebooks:** from repo root with venv active and `pip install -e .`, open files under `notebooks/` in Jupyter. Start with `01_model_reference.ipynb` → `02_simulation_and_metrics.ipynb` → `03_ab_and_clv.ipynb` → `04_statistical_inference.ipynb` → `05_bayesian_experiment_inference.ipynb` → `06_executive_pricing_experiment.ipynb` (capstone). See `notebooks/README.md` for full instructions.
 
 ## Notebook roles
 
@@ -59,6 +61,9 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
 | `01_model_reference.ipynb` | **Model reference (Part 1)** — §0–5: RunConfig parameters, cohort distributions, purchase probability formula, temporal/geo multipliers, promo eligibility. No database needed. |
 | `02_simulation_and_metrics.ipynb` | **Simulation run (Part 2)** — §6–9: full simulation run, baseline vs experiment phase comparison, incrementality via shared-draw design, metric field reference. Requires PostgreSQL. |
 | `03_ab_and_clv.ipynb` | **Analysis & CLV (Part 3)** — §10–12: A/B delivery fee sensitivity sweeps, customer journey traces, CLV validation (predicted vs actual). Requires PostgreSQL. |
+| `04_statistical_inference.ipynb` | **Inference (spec §9)** — Wilson CIs, two-proportion z-test via `app/services/stats/inference.py`; complements `GET /api/runs/{id}/experiment-inference` and batch seeds. Mostly no DB. |
+| `05_bayesian_experiment_inference.ipynb` | **Bayesian inference** — runs a short sim, loads `daily_aggregates` via `load_experiment_arm_rollups` (same as API); frequentist vs Beta–binomial; uniform vs Jeffreys. Requires PostgreSQL. |
+| `06_executive_pricing_experiment.ipynb` | **Capstone** — end-to-end experiment design, multi-seed sweep, primary run with CLV holdout, aggregates, `build_experiment_inference`, CLV vs OLS benchmark, dynamic-pricing guide, executive summary. Requires PostgreSQL. |
 | `customer_model_validation.ipynb` | **Regression test** — assertion-based validation of `compute_purchase_probability` and Bernoulli draws. No database needed. Run after changes to `app/domain/customer.py`. |
 | `repeat_purchase_validation.ipynb` | **Behavioural test** — multi-day loop verifying retention score accumulation and decay. No database needed. Run after changes to retention logic. |
 | `ab_test_analysis.ipynb` | **Experiment analysis** — delivery fee sensitivity, incremental lift, and revenue trade-off charts across multiple A/B runs. Requires PostgreSQL. |
@@ -72,6 +77,7 @@ With `pip install -e ".[dev]"` you get **Ruff** (lint + format) and **Mypy** (ty
 - **Lint:** `ruff check app tests`
 - **Format:** `ruff format app tests` (check-only: `ruff format app tests --check`)
 - **Types:** `mypy app tests`
+- **Tests:** `pytest tests` — includes `tests/test_notebooks_execute.py`, which executes all files under `notebooks/` (requires PostgreSQL + migrations; set `SKIP_NOTEBOOK_TESTS=1` to skip).
 
 Alembic revision files under `alembic/versions/` are excluded from Ruff/Mypy to keep migration noise low.
 
@@ -93,6 +99,13 @@ Alembic revision files under `alembic/versions/` are excluded from Ruff/Mypy to 
 | `notebooks/01_model_reference.ipynb` | §0–5 narrative: RunConfig, cohort distributions, purchase probability, temporal/geo context, promo eligibility (no DB) |
 | `notebooks/02_simulation_and_metrics.ipynb` | §6–9 narrative: full simulation run, phase analysis, incrementality, metric field reference (requires DB) |
 | `notebooks/03_ab_and_clv.ipynb` | §10–12 narrative: A/B comparison, customer journeys, CLV validation (requires DB) |
+| `notebooks/04_statistical_inference.ipynb` | Spec §9 narrative: Wilson intervals, z-test, ties to batch API |
+| `notebooks/05_bayesian_experiment_inference.ipynb` | Bayesian vs frequentist experiment inference; ties to `GET .../experiment-inference` |
+| `notebooks/06_executive_pricing_experiment.ipynb` | Capstone: design, multi-seed sweep, CLV holdout, inference, OLS benchmark, ML/dynamic-pricing guide (requires DB) |
+| `docs/spec-mapping.md` | Tech spec v4 vs implementation (API prefix, washout, JSONB metrics, batch/inference) |
+| `docs/quickstart.md` | First-hour orientation: UI, `quick_analysis.py`, notebooks 01–04, batch/inference pointers |
+| `docs/pricing-model.md` | Pricing and demand model: basket, phases, promos, purchase probability, incrementality |
+| `docs/mathematical-models.md` | Formal equations: predictive CLV series, purchase probability factors, churn, cohort sampling, Wilson / z-test, Beta–binomial Bayesian summaries |
 | `notebooks/customer_model_validation.ipynb` | Unit assertions on `compute_purchase_probability` and Bernoulli sampling |
 | `notebooks/repeat_purchase_validation.ipynb` | Multi-day retention decay behavioural sanity check |
 | `notebooks/ab_test_analysis.ipynb` | A/B experiment analysis and delivery fee sensitivity charts |
@@ -114,7 +127,7 @@ Alembic revision files under `alembic/versions/` are excluded from Ruff/Mypy to 
 
 ## Customer lifetime revenue model
 
-The CLV model lives entirely in `app/domain/customer.py` and `app/services/simulation/engine.py`. Key design decisions:
+The CLV model lives entirely in `app/domain/customer.py` and `app/services/simulation/engine.py`. For how offered prices and demand multipliers are built before churn and CLV snapshots, see [`docs/pricing-model.md`](docs/pricing-model.md). For the CLV and churn formulas in notation, see [`docs/mathematical-models.md`](docs/mathematical-models.md). Key design decisions:
 
 - **Churn hazard:** `p_churn = churn_base_rate × max(0, 2.0 − retention_score)`. At high retention (score ≥ 2.0) churn probability is zero; at the floor (score = 1.0) it equals `churn_base_rate`. Default 0.2%/day.  
 - **Predictive CLV formula (discounted geometric survival):**  

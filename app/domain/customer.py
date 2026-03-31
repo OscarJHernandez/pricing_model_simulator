@@ -7,6 +7,15 @@ from dataclasses import dataclass, field
 import numpy as np
 
 
+def derive_segment(budget: float, price_threshold: float, buy_propensity: float) -> str:
+    """Static segment label from cohort traits (spec optional ``segment`` field)."""
+    if budget > 0 and price_threshold / budget < 0.42:
+        return "price_sensitive"
+    if buy_propensity >= 0.42:
+        return "loyal"
+    return "casual"
+
+
 @dataclass
 class PurchaseContext:
     """Context for a single purchase decision on one simulated day.
@@ -41,6 +50,7 @@ class Customer:
         basket_mean: Central tendency for lognormal basket draws.
         location_zone: Geographic bucket for multipliers and aggregation.
         acquisition_channel: Optional channel label for the synthetic cohort.
+        segment: Cohort segment label (price_sensitive, loyal, casual).
         retention_sensitivity: Weight on retention score in the purchase model.
         promo_sensitivity: Weight on first-order / promo-related dampening.
     """
@@ -53,6 +63,7 @@ class Customer:
     repeat_boost: float
     basket_mean: float
     location_zone: str
+    segment: str = "casual"
     acquisition_channel: str | None = None
     channel_propensity_modifier: float = 1.0
     retention_sensitivity: float = 0.5

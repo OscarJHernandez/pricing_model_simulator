@@ -40,6 +40,8 @@ class DailyCustomerOutcomeRow(Base):
     contribution_margin: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     incremental_order: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     counterfactual_would_buy: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    purchase_count_after_event: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    days_since_last_purchase: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     run = relationship("SimulationRunRow", back_populates="daily_outcomes")
     customer_row = relationship("CustomerRow", back_populates="outcomes")

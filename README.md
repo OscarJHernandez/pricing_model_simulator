@@ -2,7 +2,7 @@
 
 A **learning and validation** web app that simulates **customer-level pricing** over many virtual days. Customers are generated with random traits, prices follow baseline and experiment policies (for example different delivery fees), purchases are **probabilistic**, and results are stored in **PostgreSQL** and shown in a **React workbench** UI.
 
-The full product requirements live in [`pricing_simulator_tech_spec_concise_v4.txt`](pricing_simulator_tech_spec_concise_v4.txt). Day-to-day commands and conventions for contributors (including AI assistants) are in [`Agents.md`](Agents.md).
+The full product requirements live in [`pricing_simulator_tech_spec_concise_v4.txt`](pricing_simulator_tech_spec_concise_v4.txt). Implementation deltas (API `/api` prefix, washout phase, JSONB metrics, batch runs, inference endpoint) are summarized in [`docs/spec-mapping.md`](docs/spec-mapping.md). **First-hour orientation:** [`docs/quickstart.md`](docs/quickstart.md). **How pricing and demand work in code:** [`docs/pricing-model.md`](docs/pricing-model.md). **Equations (CLV, demand, churn, inference):** [`docs/mathematical-models.md`](docs/mathematical-models.md). Day-to-day commands and conventions for contributors (including AI assistants) are in [`Agents.md`](Agents.md).
 
 ---
 
@@ -30,7 +30,7 @@ For explanations, troubleshooting, and options without Docker, see [Getting star
 - **Backend:** Python, **FastAPI**, **SQLAlchemy**, **Alembic**, **PostgreSQL** (via psycopg3). One simulation **step = one day**; default horizon is **90 days** with a **baseline** phase then an **experiment** phase.
 - **Frontend:** **Vite**, **React**, **TypeScript**, **Recharts** — left sidebar workbench: scenario builder, run summary, charts, customer explorer, validation notes.
 - **Customer lifetime revenue model:** explicit daily **churn** dropout (retention-score-driven hazard), per-customer cumulative revenue tracking, **predictive CLV** using a discounted geometric-survival series, and an optional **holdout validation window** that re-runs the engine for extra days at baseline pricing so you can compare predicted vs actual.
-- **Notebooks:** Four Jupyter notebooks under `notebooks/` import the **same** `app` package as the API (no duplicate simulation logic).
+- **Notebooks:** Walkthrough notebooks under `notebooks/` (including statistical inference) import the **same** `app` package as the API (no duplicate simulation logic). See [`notebooks/README.md`](notebooks/README.md).
 - **Deploy:** Example **Render** Blueprint in [`render.yaml`](render.yaml); start script runs migrations then Uvicorn.
 
 ---
@@ -175,6 +175,7 @@ All JSON routes are under **`/api`**.
 |--------|------|-------------|
 | `GET` | `/api/health` | Liveness |
 | `POST` | `/api/runs` | Create a run (body = run config); returns `202` and runs simulation in the background |
+| `POST` | `/api/runs/batch` | Same config, multiple seeds — enqueues one background run per seed (spec section 9) |
 | `GET` | `/api/runs` | List recent runs |
 | `GET` | `/api/runs/{id}` | Run metadata + stored parameters |
 | `GET` | `/api/runs/{id}/daily` | Daily aggregate rows (metrics JSON per segment) |
@@ -182,6 +183,7 @@ All JSON routes are under **`/api`**.
 | `GET` | `/api/runs/{id}/treatments` | Per-customer experiment assignment |
 | `GET` | `/api/runs/{id}/outcomes/sample` | Sample of per-customer daily outcomes |
 | `GET` | `/api/runs/{id}/customer-ltv` | Per-customer lifetime revenue: realized stats, predicted CLV, holdout validation revenue. Optional `?location_zone=A` filter. |
+| `GET` | `/api/runs/{id}/experiment-inference` | Experiment-phase rollups: Wilson CIs, two-proportion z-test, and Beta–binomial Bayesian block (`prior_alpha`, `prior_beta` query params, default 1,1) (completed runs only) |
 
 Run configuration fields match [`app/schemas/run_config.py`](app/schemas/run_config.py) (Pydantic), which is what the scenario form submits.
 
@@ -225,6 +227,10 @@ Open files in `notebooks/`. See [`notebooks/README.md`](notebooks/README.md) for
 | `01_model_reference.ipynb` | §0–§5 | **Start here.** Statistical model layer: RunConfig parameters, cohort distributions, purchase probability formula, temporal/geographic multipliers, promo eligibility. | No |
 | `02_simulation_and_metrics.ipynb` | §6–§9 | Full simulation run, baseline vs experiment phase comparison, incrementality via shared-draw design, metric field reference. | **Yes** |
 | `03_ab_and_clv.ipynb` | §10–§12 | A/B delivery fee sensitivity sweeps, customer journey traces, CLV validation (predicted vs actual). | **Yes** |
+| `04_statistical_inference.ipynb` | Spec §9 | Wilson intervals and two-proportion z-test (`app/services/stats/inference.py`); ties to batch runs and `GET .../experiment-inference`. | No* |
+| `05_bayesian_experiment_inference.ipynb` | Inference | Short simulation + rollups from DB; frequentist vs Bayesian (same path as `GET .../experiment-inference`); toy appendix. | **Yes** |
+
+\*Pure-math cells need no DB; comparing to a live run needs PostgreSQL like notebook 02.
 
 ### Focused validation & analysis
 
@@ -244,6 +250,8 @@ Notebooks that run the full engine require `DATABASE_URL` set to a live PostgreS
 source .venv/bin/activate
 pytest tests/ -q
 ```
+
+`tests/test_notebooks_execute.py` runs **every** notebook under `notebooks/` with `nbconvert` (15-minute timeout per notebook). That requires PostgreSQL and migrations, the same as notebook 02. Set `SKIP_NOTEBOOK_TESTS=1` to skip notebook execution locally. CI (`.github/workflows/ci.yml`) starts Postgres, runs `alembic upgrade head`, then the full pytest suite including notebooks.
 
 ---
 
@@ -271,7 +279,7 @@ If your host’s Python build image does not include **Node**, build the fronten
 | `app/schemas/run_config.py` | Pydantic run config — includes CLV fields (`churn_base_rate`, `clv_projected_days`, etc.) |
 | `alembic/` | Migration environment and versions |
 | `frontend/` | React workbench |
-| `notebooks/` | `simulation_walkthrough.ipynb` (§0–12 end-to-end), plus three focused validation/analysis notebooks |
+| `notebooks/` | Walkthrough `01`–`04` (model → simulation → A/B & CLV → inference); plus focused validation/analysis notebooks — see [`notebooks/README.md`](notebooks/README.md) |
 | `tests/` | Pytest tests |
 | `scripts/quick_analysis.py` | **One-command quickstart** — run a simulation and print P&L, CLV calibration, and next-steps |
 | `scripts/start.sh` | Migrate + Uvicorn (good for Render) |
@@ -293,6 +301,9 @@ If your host’s Python build image does not include **Node**, build the fronten
 
 ## Documentation index
 
+- **[`docs/quickstart.md`](docs/quickstart.md)** — first-hour orientation: choose UI, CLI, notebooks, or batch/inference  
+- **[`docs/pricing-model.md`](docs/pricing-model.md)** — how basket, fees, promos, and purchase probability fit together  
+- **[`docs/mathematical-models.md`](docs/mathematical-models.md)** — equations for CLV, purchase probability, churn, cohort sampling, and inference statistics  
 - **[`pricing_simulator_tech_spec_concise_v4.txt`](pricing_simulator_tech_spec_concise_v4.txt)** — product spec and acceptance criteria  
 - **[`Agents.md`](Agents.md)** — contributor/agent guide, conventions, non-negotiables  
 - **[`.env.example`](.env.example)** — environment template  

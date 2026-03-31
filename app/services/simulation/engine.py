@@ -10,7 +10,7 @@ from typing import Literal, TypedDict
 import numpy as np
 from sqlalchemy.orm import Session
 
-from app.domain.customer import Customer, PurchaseContext
+from app.domain.customer import Customer, PurchaseContext, derive_segment
 from app.models.customer import CustomerRow
 from app.models.customer_lifetime import CustomerLifetimeRow
 from app.models.daily_aggregate import DailyAggregateRow
@@ -75,6 +75,7 @@ def generate_customers(config: RunConfig, rng: np.random.Generator) -> list[Cust
         ps = float(rng.uniform(0.2, 0.9))
         ch = str(rng.choice(list(channel_mods.keys())))
         ch_modifier = channel_mods.get(ch, 1.0)
+        seg = derive_segment(budget, price_threshold, buy_propensity)
         customers.append(
             Customer(
                 customer_id=-1,
@@ -85,6 +86,7 @@ def generate_customers(config: RunConfig, rng: np.random.Generator) -> list[Cust
                 repeat_boost=repeat_boost,
                 basket_mean=basket_mean,
                 location_zone=zone,
+                segment=seg,
                 acquisition_channel=ch,
                 channel_propensity_modifier=ch_modifier,
                 retention_sensitivity=rs,
@@ -193,6 +195,7 @@ def execute_simulation(db: Session, run_id: uuid.UUID, config: RunConfig) -> Non
                 price_threshold=c.price_threshold,
                 repeat_boost=c.repeat_boost,
                 basket_mean=c.basket_mean,
+                segment=c.segment,
                 location_zone=c.location_zone,
                 acquisition_channel=c.acquisition_channel,
                 retention_sensitivity=c.retention_sensitivity,
@@ -250,6 +253,7 @@ def execute_simulation(db: Session, run_id: uuid.UUID, config: RunConfig) -> Non
             basket = _sample_basket(c, rng)
             treat = c.assigned_treatment if phase == "experiment" else None
             prior_purchases = c.purchase_count
+            days_since_lp = None if c.last_purchase_day is None else int(day - c.last_purchase_day)
 
             promo_ok = promo_eligible(c, day, promo_rules, cumulative_discount)
             geo_m = zone_multiplier(c.location_zone, config.zone_modifiers)
@@ -333,6 +337,8 @@ def execute_simulation(db: Session, run_id: uuid.UUID, config: RunConfig) -> Non
                 contribution_margin=margin if purchased else 0.0,
                 incremental_order=incremental,
                 counterfactual_would_buy=cf_buy,
+                purchase_count_after_event=c.purchase_count,
+                days_since_last_purchase=days_since_lp,
             )
             day_outcomes.append(row)
 

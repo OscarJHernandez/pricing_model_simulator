@@ -53,7 +53,10 @@ class DayMetricsOut(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    customers_evaluated: int
+    customers_evaluated: int = Field(
+        ...,
+        description="Active (non-churned) customers evaluated on this day in this aggregate slice",
+    )
     orders: int
     conversion_rate: float
     average_order_value: float
@@ -72,6 +75,10 @@ class DayMetricsOut(BaseModel):
     buyers_count: int
     repeat_buyers: int
     ever_purchased_before_day: int
+    active_customers_evaluated: int = Field(
+        ...,
+        description="Same value as customers_evaluated (spec-friendly alias for “active” count)",
+    )
 
 
 class DailyAggregateOut(BaseModel):
@@ -97,6 +104,7 @@ class CustomerOut(BaseModel):
     buy_propensity: float
     price_threshold: float
     basket_mean: float
+    segment: str
     location_zone: str
 
 
@@ -119,6 +127,109 @@ class OutcomeSampleOut(BaseModel):
     purchased: bool
     incremental_order: bool
     net_revenue: float
+    purchase_count_after_event: int
+    days_since_last_purchase: int | None
+
+
+class ExperimentArmStatsOut(BaseModel):
+    """Aggregated experiment-phase counts for one treatment arm."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    treatment: str
+    customer_days: int
+    orders: int
+    conversion_rate: float
+    conversion_rate_wilson_low: float
+    conversion_rate_wilson_high: float
+    net_revenue: float
+    contribution_margin: float
+
+
+class BayesianArmStatsOut(BaseModel):
+    """Beta–binomial posterior summary for one arm (conversion on customer-days)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    treatment: str
+    posterior_alpha: float = Field(
+        ...,
+        description="Beta posterior alpha after orders and customer-days",
+    )
+    posterior_beta: float
+    conversion_rate_posterior_mean: float = Field(
+        ...,
+        description="Posterior mean conversion rate α/(α+β)",
+    )
+    conversion_rate_credible_low: float = Field(
+        ...,
+        description="Equal-tailed credible bound (2.5% quantile of posterior draws)",
+    )
+    conversion_rate_credible_high: float = Field(
+        ...,
+        description="Equal-tailed credible bound (97.5% quantile of posterior draws)",
+    )
+
+
+class BayesianComparisonOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    prob_variant_superior: float = Field(
+        ...,
+        description="P(variant conversion > control | data); independent Beta posteriors",
+    )
+    lift_absolute_mean: float
+    lift_absolute_median: float
+    lift_relative_mean: float | None = Field(
+        None,
+        description="Mean of (p_v−p_c)/p_c over draws with p_c > epsilon; null if no such draws",
+    )
+    lift_relative_median: float | None = Field(
+        None,
+        description="Median of (p_v−p_c)/p_c over draws with p_c > epsilon; null if no such draws",
+    )
+    relative_lift_effective_sample_fraction: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Fraction of MC draws where p_c exceeded relative_lift_p_c_epsilon",
+    )
+
+
+class BayesianExperimentInferenceOut(BaseModel):
+    """Bayesian Beta-binomial analysis for experiment-phase conversion."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    prior_alpha: float
+    prior_beta: float
+    mc_samples: int
+    relative_lift_p_c_epsilon: float
+    control: BayesianArmStatsOut
+    variant: BayesianArmStatsOut
+    comparison: BayesianComparisonOut
+
+
+class ExperimentInferenceOut(BaseModel):
+    """Run-level experiment summary with spec §9 style inference."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: str
+    control: ExperimentArmStatsOut
+    variant: ExperimentArmStatsOut
+    conversion_lift_absolute: float
+    conversion_lift_relative: float
+    two_proportion_z_statistic: float
+    two_proportion_p_value_two_sided: float
+    bayesian: BayesianExperimentInferenceOut
+
+
+class BatchCreateRunsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ids: list[str]
+    status: str
 
 
 class CustomerLTVOut(BaseModel):

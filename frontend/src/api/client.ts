@@ -45,6 +45,7 @@ export type CustomerRow = {
   buy_propensity: number
   price_threshold: number
   basket_mean: number
+  segment: string
   location_zone: string
 }
 
@@ -62,6 +63,84 @@ export async function createRun(body: Record<string, unknown>) {
       body: JSON.stringify(body),
     }),
   )
+}
+
+export async function createRunBatch(body: {
+  seeds: number[]
+  run: Record<string, unknown>
+}) {
+  return parse<{ ids: string[]; status: string }>(
+    fetch(`${base}/api/runs/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  )
+}
+
+export type BayesianArmStats = {
+  treatment: string
+  posterior_alpha: number
+  posterior_beta: number
+  conversion_rate_posterior_mean: number
+  conversion_rate_credible_low: number
+  conversion_rate_credible_high: number
+}
+
+export type BayesianComparison = {
+  prob_variant_superior: number
+  lift_absolute_mean: number
+  lift_absolute_median: number
+  lift_relative_mean: number | null
+  lift_relative_median: number | null
+  relative_lift_effective_sample_fraction: number
+}
+
+export type BayesianExperimentInference = {
+  prior_alpha: number
+  prior_beta: number
+  mc_samples: number
+  relative_lift_p_c_epsilon: number
+  control: BayesianArmStats
+  variant: BayesianArmStats
+  comparison: BayesianComparison
+}
+
+export type ExperimentArmStats = {
+  treatment: string
+  customer_days: number
+  orders: number
+  conversion_rate: number
+  conversion_rate_wilson_low: number
+  conversion_rate_wilson_high: number
+  net_revenue: number
+  contribution_margin: number
+}
+
+export type ExperimentInference = {
+  run_id: string
+  control: ExperimentArmStats
+  variant: ExperimentArmStats
+  conversion_lift_absolute: number
+  conversion_lift_relative: number
+  two_proportion_z_statistic: number
+  two_proportion_p_value_two_sided: number
+  bayesian: BayesianExperimentInference
+}
+
+export async function getExperimentInference(
+  id: string,
+  opts?: { priorAlpha?: number; priorBeta?: number },
+) {
+  const q = new URLSearchParams()
+  if (opts?.priorAlpha != null) q.set('prior_alpha', String(opts.priorAlpha))
+  if (opts?.priorBeta != null) q.set('prior_beta', String(opts.priorBeta))
+  const qs = q.toString()
+  const url =
+    qs.length > 0
+      ? `${base}/api/runs/${id}/experiment-inference?${qs}`
+      : `${base}/api/runs/${id}/experiment-inference`
+  return parse<ExperimentInference>(fetch(url))
 }
 
 export async function getRun(id: string) {

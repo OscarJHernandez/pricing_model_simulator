@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,20 +19,34 @@ from app.models.daily_customer_outcome import DailyCustomerOutcomeRow
 from app.models.experiment_assignment import ExperimentAssignmentRow
 from app.models.simulation_run import SimulationRunRow
 from app.schemas.api_responses import (
+    BatchCreateRunsResponse,
     CreateRunResponse,
     CustomerLTVOut,
     CustomerOut,
     DailyAggregateOut,
     DayMetricsOut,
+    ExperimentInferenceOut,
     OutcomeSampleOut,
     RunDetail,
     RunSummary,
     TreatmentAssignmentOut,
 )
+from app.schemas.batch_runs import BatchRunsBody
+from app.schemas.day_metrics import DayMetrics
 from app.schemas.run_config import RunConfig
 from app.services.simulation.engine import create_run_record, execute_simulation
+from app.services.stats.inference import (
+    build_experiment_inference,
+    load_experiment_arm_rollups,
+)
 
 router = APIRouter()
+
+
+def _metrics_with_active_alias(raw: DayMetrics) -> dict[str, Any]:
+    m = dict(raw)
+    m["active_customers_evaluated"] = m["customers_evaluated"]
+    return m
 
 
 def _run_simulation_job(run_id: uuid.UUID, payload: dict[str, Any]) -> None:
@@ -66,6 +80,23 @@ def create_run(
     run_id = create_run_record(db, body)
     background_tasks.add_task(_run_simulation_job, run_id, body.model_dump())
     return CreateRunResponse(id=str(run_id), status="pending")
+
+
+@router.post("/batch", status_code=202)
+def create_run_batch(
+    body: BatchRunsBody,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> BatchCreateRunsResponse:
+    """Enqueue one simulation per seed with identical configuration (spec section 9)."""
+    ids: list[str] = []
+    base = body.run.model_dump()
+    for seed in body.seeds:
+        cfg = RunConfig.model_validate({**base, "seed": seed})
+        run_id = create_run_record(db, cfg)
+        ids.append(str(run_id))
+        background_tasks.add_task(_run_simulation_job, run_id, cfg.model_dump())
+    return BatchCreateRunsResponse(ids=ids, status="pending")
 
 
 @router.get("")
@@ -127,7 +158,7 @@ def get_daily(
             phase=row.phase,
             treatment=row.treatment,
             location_zone=row.location_zone,
-            metrics=DayMetricsOut.model_validate(row.metrics),
+            metrics=DayMetricsOut.model_validate(_metrics_with_active_alias(row.metrics)),
         )
         for row in rows
     ]
@@ -155,6 +186,7 @@ def get_customers(
             buy_propensity=c.buy_propensity,
             price_threshold=c.price_threshold,
             basket_mean=c.basket_mean,
+            segment=c.segment,
             location_zone=c.location_zone,
         )
         for c in rows
@@ -244,6 +276,40 @@ def sample_outcomes(
             purchased=o.purchased,
             incremental_order=o.incremental_order,
             net_revenue=o.net_revenue,
+            purchase_count_after_event=o.purchase_count_after_event,
+            days_since_last_purchase=o.days_since_last_purchase,
         )
         for o in rows
     ]
+
+
+@router.get("/{run_id}/experiment-inference")
+def get_experiment_inference(
+    run_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    prior_alpha: float = Query(
+        1.0,
+        gt=0.0,
+        description="Beta prior alpha per arm (conjugate to conversion)",
+    ),
+    prior_beta: float = Query(1.0, gt=0.0, description="Beta prior beta per arm"),
+) -> ExperimentInferenceOut:
+    """Experiment-phase rollups: Wilson, z-test, and Beta-binomial Bayesian block."""
+    r = db.get(SimulationRunRow, run_id)
+    if not r:
+        raise HTTPException(404, "Run not found")
+    if r.status != "completed":
+        raise HTTPException(409, "Run not completed")
+
+    ctrl, var = load_experiment_arm_rollups(db, run_id)
+
+    if ctrl.customer_days == 0 and var.customer_days == 0:
+        raise HTTPException(404, "No experiment-phase aggregates for this run")
+
+    return build_experiment_inference(
+        run_id=str(run_id),
+        control=ctrl,
+        variant=var,
+        prior_alpha=prior_alpha,
+        prior_beta=prior_beta,
+    )

@@ -24,6 +24,7 @@ class CustomerRow(Base):
     price_threshold: Mapped[float] = mapped_column(Float, nullable=False)
     repeat_boost: Mapped[float] = mapped_column(Float, nullable=False)
     basket_mean: Mapped[float] = mapped_column(Float, nullable=False)
+    segment: Mapped[str] = mapped_column(String(32), nullable=False, default="casual")
     location_zone: Mapped[str] = mapped_column(String(64), nullable=False)
     acquisition_channel: Mapped[str | None] = mapped_column(String(64), nullable=True)
     retention_sensitivity: Mapped[float | None] = mapped_column(Float, nullable=True)

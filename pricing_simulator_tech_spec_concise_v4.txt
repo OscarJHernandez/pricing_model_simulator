@@ -1,373 +1,456 @@
 Pricing Simulator App Tech Spec
-Version: MVP v3
+Version: MVP v1
 Target deployment: Render
+Primary goal: Learn how customer-level pricing behavior and later pricing experiments affect orders, revenue, and profit over a 90-day simulation.
 
-1. Goal
-Build a deployable web app with a frontend and Python backend to simulate customer-level pricing behavior over 90 virtual days.
+==================================================
+1. PRODUCT GOAL
+==================================================
 
-The app must:
-- simulate customers day by day
-- run a baseline period with no experiments
-- introduce pricing experiments later
-- model purchases statistically
-- persist results
-- include notebook-based validation of the core logic
+Build a simple web application with a frontend and Python backend that simulates a delivery-platform-style business.
 
-This is a learning and validation tool, not a production marketplace.
+The application must:
+- simulate individual customers over 90 virtual days
+- advance simulation time in 1-day steps
+- run an initial baseline period with no experiments
+- later introduce pricing experiments
+- model customer purchase decisions statistically
+- store and display results for analysis
 
-2. Core Simulation Design
-Simulation type:
-- customer-level stochastic simulation
+This is a learning and experimentation tool, not a production marketplace system.
 
-Time model:
-- 1 step = 1 day
-- default horizon = 90 days
+==================================================
+2. CORE PRODUCT REQUIREMENTS
+==================================================
 
-Required phases:
-- baseline phase: default pricing, no experiment
-- experiment phase: pricing treatments start later
+The app must support two phases:
 
-Recommended default:
-- days 1-30 baseline
-- days 31-90 experiment
+A. Baseline phase
+- run under default pricing
+- no experiments active
+- customer behavior evolves naturally
+- customer history is built during this period
 
+B. Experiment phase
+- begins on a configurable simulation day
+- pricing experiments are introduced
+- customers are assigned to control or variant groups
+- outcomes are measured and compared
 
-2A. Advanced MVP+ Pricing Features
-Add the following features to make the simulator closer to modern marketplace pricing:
+Recommended default timeline:
+- Days 1-30: baseline
+- Days 31-90: experiment
 
-- incrementality model
-- temporal context
-- geographic context
-- retention / CLV effects
-- promo eligibility and budget constraints
+==================================================
+3. CORE DOMAIN MODEL
+==================================================
 
-3. Customer Model
-Each customer must be a class instance.
+The simulator is a customer-level stochastic simulation.
 
-Required fixed attributes:
-- customer_id
+Unit of simulation:
+- one customer
+
+Time unit:
+- one day
+
+Simulation horizon:
+- 90 days
+
+Main idea:
+- instantiate many customer objects
+- each customer has fixed traits and dynamic state
+- on each day, each customer may or may not purchase
+- purchase probability depends on price and customer state
+- after experiments start, pricing may differ by treatment group
+
+==================================================
+4. CUSTOMER MODEL
+==================================================
+
+Each customer must be represented as a class instance.
+
+4.1 Static customer attributes
+These are assigned when the customer is created.
+
+Required fields:
+- customer_id: unique identifier
+- budget: maximum spending level the customer can tolerate
+- buy_propensity: baseline tendency to buy
+- price_threshold: price level below which customer is more likely to buy
+- repeat_boost: multiplier or additive effect for repeat-purchase tendency
+- segment: optional label such as new, loyal, price_sensitive
+- basket_mean: expected order value if purchase occurs
+- location_zone: optional area or market zone
+
+Minimal required pricing traits:
 - budget
 - buy_propensity
 - price_threshold
-- repeat_boost
-- basket_mean
-- location_zone
 
-Recommended fixed attributes:
-- acquisition_channel
-- retention_sensitivity
-- promo_sensitivity
+4.2 Dynamic customer state
+These evolve during the simulation.
 
-Required dynamic state:
-- has_purchased_before
-- purchase_count
-- last_purchase_day
-- assigned_treatment
-- promo_uses_to_date
-- is_active
-- retention_score
+Required fields:
+- has_purchased_before: boolean
+- purchase_count: number of prior purchases
+- last_purchase_day: most recent purchase day or null
+- days_since_last_purchase: derived recency metric
+- assigned_treatment: control or variant after experiment starts
 
-Required behavior:
-- if offered price > budget, purchase probability is zero or near zero
-- if offered price <= price_threshold, purchase probability is higher
-- new customers are harder to convert
-- returning customers are more likely to buy again
-- prior purchases increase future purchase probability
+4.3 Customer behavior requirement
+New customers must be harder to convert.
+Returning customers must be more likely to buy again.
 
-Required interface:
-- compute_purchase_probability(offered_price, current_day, context)
-- decide_purchase(random_state, offered_price, current_day, context)
-- register_purchase(current_day, order_value)
+This means the purchase model must include:
+- a lower probability for customers with no previous purchase
+- a higher probability for customers with prior purchases
+- an update to customer state after each successful purchase
 
-4. Purchase Logic
-Purchase must be probabilistic.
+==================================================
+5. MINIMAL PURCHASE LOGIC
+==================================================
 
-Recommended structure:
+The purchase decision must be probabilistic, not deterministic.
+
+For an offered total price:
+
+Case 1:
+- if price > budget
+- purchase probability = 0 or near 0
+
+Case 2:
+- if price <= budget but price > price_threshold
+- purchase probability is reduced
+
+Case 3:
+- if price <= price_threshold
+- purchase probability is higher
+
+Repeat-purchase effect:
+- if customer has purchased before, probability increases
+- this increase can depend on purchase_count and/or recency
+- keep the first version simple and capped
+
+Recommended conceptual form:
+
 purchase_probability
 = base propensity
   x price effect
   x repeat effect
   x optional calendar effect
 
-Rules:
-- probability must be clipped to [0, 1]
+where:
 - price effect decreases as price rises
 - repeat effect is lower for new customers and higher for returning customers
-- temporal effects can shift demand by day, weekday, or season
-- geographic effects can shift demand by zone or market
+- probability must be clipped to [0, 1]
 
-5. Pricing Model
-Baseline pricing policy:
+==================================================
+6. PRICING MODEL
+==================================================
+
+The pricing model should start minimal.
+
+6.1 Default pricing policy
+Used during baseline phase.
+
+Required fields:
 - item_price or order_price
 - delivery_fee
 - service_fee
-- optional discount
+- optional discount amount
 - optional free-delivery threshold
 
-Experiment pricing policy:
+6.2 Experiment pricing policy
+Used during experiment phase.
+
+Examples:
+- lower delivery fee
+- service fee change
+- fixed discount
+- free delivery above threshold
+
+At MVP stage, one pricing lever is enough.
+Recommended first lever:
+- delivery fee
+
+==================================================
+7. EXPERIMENT MODEL
+==================================================
+
+Experiments must not start on day 1.
+
+7.1 Baseline requirement
+- run baseline with no active experiment
+- preserve customer history from baseline into experiment phase
+
+7.2 Experiment start
+At a configured day:
+- activate experiment
+- assign customers to treatment groups
+
+7.3 Treatment groups
+Minimum:
 - control
-- one variant at minimum
+- one variant
 
-Recommended first experiment:
-- control delivery fee = 2.99
-- variant delivery fee = 1.99
+Example:
+- control: delivery fee = 2.99
+- variant: delivery fee = 1.99
 
-Promo constraint features:
-- first-order-only eligibility
-- max promo uses per customer
-- optional cooldown between promo uses
-- campaign budget cap
+7.4 Assignment level
+For MVP:
+- assign at customer level
+- keep customer in same treatment for remainder of experiment
 
-MVP recommendation:
-- use one pricing lever first
-- delivery fee is the simplest choice
+==================================================
+8. SIMULATION ENGINE
+==================================================
 
-6. Experiment Model
-Requirements:
-- experiments must not start on day 1
-- customer history from baseline must carry into experiment phase
-- treatment assignment starts on a configured day
-- assignment is at customer level
-- each customer stays in the same treatment through the experiment
+The simulation engine is the core backend component.
 
-6A. Incrementality and Retention Model
-The simulator must distinguish between:
-- customers who would buy without a promo
-- customers converted because of a promo
-
-Required outputs:
-- incremental_orders
-- incremental_revenue
-- incremental_margin
-- subsidy_waste or non_incremental_discount_spend
-
-The simulator must also model retention effects:
-- a discount or successful order today can increase future purchase probability
-- the simulation should track short-run and longer-run effects across the 90-day horizon
-
-7. Simulation Engine
-Main responsibilities:
-- generate customer population
-- advance the simulation one day at a time
-- apply active pricing policy
-- apply temporal and geographic context
-- compute purchase probabilities
-- enforce promo eligibility and budget rules
-- sample purchases
-- generate order values
+8.1 Main responsibilities
+- create customer population
+- advance the simulation day by day
+- apply baseline or experiment pricing depending on current day
+- compute customer purchase probabilities
+- sample purchases statistically
+- generate order values when purchases occur
 - update customer state
-- store daily and cumulative outputs
+- record daily and cumulative metrics
 
-Daily loop:
-1. increment day
-2. select active pricing policy
-3. evaluate each customer
-4. sample buy or no-buy
-5. if buy, compute order value and profit
-6. update state
-7. aggregate day-level metrics
-8. persist outputs
+8.2 Daily simulation loop
+For each day:
+1. increment simulation day
+2. determine active pricing policy
+3. for each customer:
+   - compute offered price
+   - compute purchase probability
+   - sample buy/no-buy outcome
+   - if buy:
+     - sample or assign order value
+     - compute revenue and margin
+     - update customer state
+4. aggregate day-level metrics
+5. persist outputs
 
-8. Statistical Requirements
-The simulator must be statistical, not deterministic.
+==================================================
+9. STATISTICAL REQUIREMENTS
+==================================================
 
-Requirements:
+The app must be statistical in nature.
+
+Required properties:
 - customer traits can be sampled from distributions
-- purchases are random draws from probabilities
-- different seeds can produce different runs
-- experiment results come from simulated samples
+- purchases are sampled probabilistically
+- different runs can produce different outcomes
+- experiment results should be estimated from simulated data
 
 Recommended first distributions:
-- budget: truncated normal or log-normal
+- budget: normal, log-normal, or truncated normal
 - buy_propensity: beta or bounded random draw
-- price_threshold: sampled or derived from budget
-- basket_mean: log-normal
-- location_zone: categorical draw
-- retention_sensitivity: bounded random draw
+- price_threshold: derived from budget or sampled separately
+- basket_mean: log-normal or gamma-like positive distribution
 
-Required contextual factors:
-- weekday or weekend effects
-- optional holiday or event effects
-- zone or city-level demand modifiers
+Recommended first estimation outputs:
+- control vs variant conversion
+- lift in orders
+- lift in revenue
+- lift in contribution margin
 
-9. Business Outputs
+Optional later:
+- confidence intervals
+- hypothesis tests
+- repeated simulation runs across seeds
+
+==================================================
+10. ORDER, REVENUE, AND PROFIT MODEL
+==================================================
+
+The simulator must record basic business outcomes.
+
 Per purchase, compute:
-- order_count
-- gross_revenue
-- discount_amount
-- net_revenue
-- variable_cost
-- contribution_margin
+- order_count = 1
+- gross revenue
+- discount amount
+- fees charged
+- net revenue
+- variable cost
+- contribution margin
 
-Required aggregate metrics:
+Minimal MVP outputs:
 - orders
-- conversion_rate
-- average_order_value
-- gross_revenue
-- discount_spend
-- net_revenue
-- contribution_margin
-- orders_per_customer
-- repeat_purchase_rate
-- incremental_orders
-- incremental_revenue
-- incremental_margin
-- non_incremental_discount_spend
-- retained_customer_rate
+- gross revenue
+- discount spend
+- net revenue
+- contribution margin
+
+==================================================
+11. METRICS LAYER
+==================================================
+
+The metrics engine must aggregate outputs by day, phase, and treatment.
+
+Required metrics:
+- total customers
+- active customers
+- orders
+- conversion rate
+- average order value
+- gross revenue
+- discount spend
+- net revenue
+- contribution margin
+- orders per customer
+- share of customers with repeat purchase
 
 Required breakdowns:
-- baseline vs experiment
+- baseline vs experiment phase
 - control vs variant
-- by location_zone
+- overall 90-day totals
 - daily time series
-- 90-day totals
 
-10. Notebook Validation Requirement
-The project must include Jupyter notebooks that validate the real implementation.
+==================================================
+12. DATA STORAGE
+==================================================
 
-Purpose:
-- verify the customer model
-- inspect pricing logic directly
-- test repeat-purchase behavior
-- validate baseline-to-experiment transition
-- check experiment outputs outside the UI
+The app should persist simulation runs so they can be viewed later.
 
-Required notebooks:
-1. customer_model_validation.ipynb
-   - instantiate sample customers
-   - test prices against budgets and thresholds
-   - show new vs returning customer behavior
-
-2. repeat_purchase_validation.ipynb
-   - simulate a few customers across days
-   - show purchase_count and recency effects
-   - verify state updates after purchases
-
-3. simulation_smoke_test.ipynb
-   - run a small end-to-end simulation
-   - show baseline period
-   - show experiment activation
-   - show summary outputs
-
-4. experiment_comparison_demo.ipynb
-   - run control vs variant
-   - compare orders, conversion, revenue, and margin
-   - show incremental vs non-incremental effects
-
-5. context_and_constraints_demo.ipynb
-   - show weekday or seasonal demand shifts
-   - show zone-level demand differences
-   - verify promo eligibility rules
-   - verify campaign budget cap behavior
-
-Notebook rules:
-- notebooks must run locally
-- notebooks must import the real backend modules
-- no duplicate toy logic separate from the app code
-
-11. In-App Code / Notebook Workspace
-The app should include a place to inspect or execute validation code.
-
-MVP options:
-- notebook viewer plus downloadable notebooks
-- a safe code runner for predefined examples
-- a notebook-style validation page backed by the same Python modules
-
-MVP constraint:
-- do not build a full unrestricted multi-user Jupyter server first
-
-Purpose:
-- validate customer instantiation
-- validate purchase probabilities
-- validate repeat-purchase updates
-- validate temporal and geographic effects
-- validate promo eligibility and budget rules
-- validate small simulation runs
-
-12. Data Storage
 Use PostgreSQL on Render.
 
-Required entities:
+Minimum stored entities:
 - simulation_runs
 - run_parameters
 - customers
-- experiment_assignments
-- daily_customer_outcomes
+- daily_customer_events or daily_outcomes
 - daily_aggregates
-- promo_budget_tracking
+- experiment_assignments
 
-Minimum table intent:
-- simulation_runs: metadata and status
-- run_parameters: run configuration
-- customers: sampled customer traits
-- experiment_assignments: control/variant mapping
-- daily_customer_outcomes: customer-day outcomes
-- daily_aggregates: summarized metrics
-- promo_budget_tracking: campaign spend and remaining budget
+Suggested tables:
+1. simulation_runs
+   - run_id
+   - created_at
+   - seed
+   - total_days
+   - baseline_days
+   - experiment_start_day
+   - status
 
-13. Backend Architecture
-Recommended stack:
+2. run_parameters
+   - run_id
+   - customer_count
+   - default_pricing_json
+   - experiment_pricing_json
+   - generation_parameters_json
+
+3. customers
+   - run_id
+   - customer_id
+   - budget
+   - buy_propensity
+   - price_threshold
+   - repeat_boost
+   - basket_mean
+   - segment
+
+4. experiment_assignments
+   - run_id
+   - customer_id
+   - treatment_group
+
+5. daily_customer_outcomes
+   - run_id
+   - day
+   - customer_id
+   - offered_price
+   - treatment_group
+   - purchased
+   - order_value
+   - revenue
+   - discount_amount
+   - contribution_margin
+   - purchase_count_after_event
+
+6. daily_aggregates
+   - run_id
+   - day
+   - phase
+   - treatment_group
+   - customers_seen
+   - orders
+   - conversion_rate
+   - average_order_value
+   - gross_revenue
+   - discount_spend
+   - contribution_margin
+
+==================================================
+13. BACKEND ARCHITECTURE
+==================================================
+
+Backend stack:
 - Python
 - FastAPI
 - SQLAlchemy
 - PostgreSQL
-- NumPy / Pandas
+- NumPy / Pandas for simulation logic
 
-Required modules:
+Required backend components:
 - API layer
-- customer model
-- pricing policy module
 - simulation service
+- customer model module
+- pricing policy module
 - experiment assignment module
-- incrementality module
-- retention module
-- promo constraints module
-- metrics module
+- metrics aggregation module
 - persistence layer
 
-Recommended structure:
+Suggested backend modules:
 - app/api
 - app/models
 - app/services/simulation
 - app/services/pricing
 - app/services/metrics
 - app/db
-- notebooks/
 
-Recommended endpoints:
+Recommended API endpoints:
 - POST /runs
+  create and start a simulation run
+
 - GET /runs
+  list previous runs
+
 - GET /runs/{run_id}
+  get run summary
+
 - GET /runs/{run_id}/daily
+  get daily metrics
+
 - GET /runs/{run_id}/customers
+  inspect sampled customers
+
 - GET /runs/{run_id}/treatments
+  inspect control/variant summaries
 
-Important:
-- notebooks and API must call the same backend logic
+==================================================
+14. FRONTEND ARCHITECTURE
+==================================================
 
-14. Frontend Architecture
+Frontend goal:
+- simple control panel + results dashboard
+
 Recommended stack:
 - React
 - TypeScript
-- Recharts or similar
+- simple chart library such as Recharts
 
-UI requirement:
-- if the app has navigation, sidebars, tabs, or action panels, use a left-aligned workbench-style layout
-- do not use a centered marketing-page layout
-
-Required screens:
+Required frontend screens:
 1. Scenario Builder
    - customer count
    - simulation days
    - baseline length
    - experiment start day
-   - baseline pricing
+   - default pricing
    - experiment pricing
-   - customer generation parameters
-   - temporal demand settings
-   - geographic demand settings
-   - promo eligibility rules
-   - campaign budget
+   - distribution parameters for customer generation
 
 2. Run Summary
    - run metadata
@@ -382,110 +465,141 @@ Required screens:
    - cumulative metrics
 
 4. Customer Explorer
-   - sampled customers
+   - sample customer records
    - budget distribution
    - buy_propensity distribution
    - price_threshold distribution
 
-5. Validation Workspace
-   - notebook or code examples
-   - customer behavior checks
-   - small simulation demos
+==================================================
+15. DEPLOYMENT REQUIREMENTS
+==================================================
 
-15. Deployment Requirements
-Deploy on Render with PostgreSQL.
+Deploy on Render.
 
-Requirements:
-- web service for backend, optionally frontend too
+Recommended deployment shape:
+- one web service for frontend/backend app
+or
+- one backend web service + static frontend
+
+Simplest MVP:
+- backend serves API
+- frontend served from same app if convenient
+
+Required infrastructure:
+- Render web service
+- Render PostgreSQL instance
+- environment variables for database connection and settings
+
+Backend must support:
 - production start command
 - database migrations
-- environment variables for DB connection
-- notebooks stored in repo and runnable locally
+- persistent PostgreSQL connection
 
-If in-app code execution is added:
-- use a constrained safe execution model for MVP
+==================================================
+16. MVP SCOPE
+==================================================
 
-16. MVP Scope
+The MVP must stay small.
+
 Include:
 - one market
-- one business type
+- one merchant/business type
 - one customer population
 - one baseline period
-- one later experiment
+- one experiment starting later
 - one pricing lever
 - one control and one variant
 - one 90-day run
-- dashboards
-- validation notebooks
-- temporal effects
-- geographic effects
-- retention effects
-- incrementality tracking
-- promo eligibility and budget constraints
-- left-aligned workbench UI
+- basic dashboards
 
-Exclude:
+Do not include in MVP:
 - real maps
-- merchant catalogs
-- logistics simulation
-- overlapping experiments
-- complex causal inference
-- production auth unless needed
+- real merchant catalog
+- routing/logistics simulation
+- multiple overlapping experiments
+- causal inference complexity beyond simple treatment comparison
+- production authentication unless needed
 
-17. Non-Negotiable Rules
-1. 1 simulation step = 1 day
-2. default horizon = 90 days
-3. app starts with baseline and no experiment
-4. experiments begin later
-5. each customer is a class instance
-6. each customer includes budget, buy_propensity, and price_threshold
-7. customer state evolves over time
-8. new customers are harder to convert
-9. prior purchases increase future purchase probability
-10. purchase outcomes are stochastic
-11. results include orders, revenue, and contribution margin
-12. app deploys on Render with PostgreSQL
-13. project includes Jupyter notebooks that validate the real logic
-14. notebooks use the same modules as the app
-15. UI navigation/workbench layout is left-aligned
-16. app includes a validation workspace for notebook-style or code-based inspection
-17. simulator includes temporal demand effects
-18. simulator includes geographic demand effects
-19. simulator tracks incrementality, not just raw lift
-20. simulator includes retention effects across the 90-day horizon
-21. simulator enforces promo eligibility or budget constraints
+==================================================
+17. NON-NEGOTIABLE LOGIC RULES
+==================================================
 
-18. Build Order
-1. define DB schema
-2. implement Customer class
-3. implement pricing policies
-4. implement temporal, geographic, and promo-constraint modules
-5. implement daily simulation loop
-6. implement baseline-to-experiment transition
-7. implement incrementality and retention metrics
-8. implement metrics aggregation
-9. expose backend API
-10. build validation notebooks
-11. build frontend screens
-12. add validation workspace
-13. deploy to Render
+The implementation must satisfy all of the following:
 
-19. Acceptance Criteria
+1. The simulation runs in daily steps.
+2. The total virtual time is 90 days by default.
+3. The app starts with a baseline period with no experiment.
+4. Pricing experiments are introduced later, not at the start.
+5. Each customer is a class instance with fixed pricing-related traits.
+6. Each customer must include at least:
+   - budget
+   - buy_propensity
+   - price_threshold
+7. Customer state must evolve over time.
+8. New customers must be harder to convert than returning customers.
+9. Prior purchases must increase future purchase probability.
+10. Purchase outcomes must be stochastic.
+11. Results must include orders, revenue, and contribution margin.
+12. The app must be deployable on Render using PostgreSQL.
+
+==================================================
+18. SUGGESTED PYTHON CUSTOMER INTERFACE
+==================================================
+
+The implementation should conceptually support a customer class like this:
+
+Customer
+- attributes:
+  - customer_id
+  - budget
+  - buy_propensity
+  - price_threshold
+  - repeat_boost
+  - basket_mean
+  - has_purchased_before
+  - purchase_count
+  - last_purchase_day
+  - assigned_treatment
+
+- methods:
+  - compute_purchase_probability(offered_price, current_day, context)
+  - decide_purchase(random_state, offered_price, current_day, context)
+  - register_purchase(current_day, order_value)
+
+Exact code can vary, but this behavioral interface must exist.
+
+==================================================
+19. FIRST IMPLEMENTATION ORDER
+==================================================
+
+Build in this order:
+
+1. Define database schema
+2. Implement Customer class
+3. Implement pricing policy objects
+4. Implement daily simulation loop
+5. Implement baseline-to-experiment transition
+6. Implement metrics aggregation
+7. Expose backend API
+8. Build frontend scenario form
+9. Build results dashboard
+10. Deploy to Render
+
+==================================================
+20. ACCEPTANCE CRITERIA
+==================================================
+
 The MVP is acceptable if:
-- user can configure a run in the UI
-- backend generates customers
-- simulation runs 90 days in daily steps
-- baseline phase runs before experiment phase
+
+- a user can configure a run from the UI
+- the backend generates a customer population
+- the simulation advances 90 days in 1-day steps
+- the first part runs with no experiment
+- the later part runs with a pricing experiment
 - customers have budget, buy_propensity, and price_threshold
 - returning customers become easier to convert
-- outputs are stored in PostgreSQL
-- frontend displays results
-- notebooks validate customer behavior and experiment flow
-- outputs include incrementality metrics
-- simulation includes time and zone effects
-- simulation enforces promo eligibility or budget rules
-- UI is left-aligned and workbench-style
-- app includes a code or notebook validation area
-- deployment works on Render
+- outputs are saved in PostgreSQL
+- results are viewable in the frontend
+- the app deploys successfully on Render
 
 End of spec.

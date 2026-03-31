@@ -2,6 +2,8 @@
 
 This folder contains Jupyter notebooks for exploring, validating, and analysing the pricing simulator. All notebooks import `app` modules directly — there is no duplicate simulation logic.
 
+**New to the repo?** See [`../docs/quickstart.md`](../docs/quickstart.md) for UI vs CLI vs notebook paths. For a concise description of basket totals, fees, promos, purchase probability, and experiment phases, see [`../docs/pricing-model.md`](../docs/pricing-model.md). For the same models in equation form (CLV, churn, cohort sampling, inference), see [`../docs/mathematical-models.md`](../docs/mathematical-models.md).
+
 ---
 
 ## Prerequisites
@@ -46,15 +48,22 @@ The setup cell in each DB-required notebook will load `.env` automatically via `
 
 ## Walkthrough notebooks (start here)
 
-These three notebooks replace the previous monolithic `simulation_walkthrough.ipynb` and cover the same material in focused, independently runnable parts.
+These notebooks replace the previous monolithic `simulation_walkthrough.ipynb` and cover the model, simulation, A/B + CLV, and statistical inference.
 
 | Notebook | Sections | Needs DB? | Description |
 |----------|----------|-----------|-------------|
-| [`01_model_reference.ipynb`](01_model_reference.ipynb) | §0–§5 | No | Statistical model layer: RunConfig parameters, cohort distributions, purchase probability formula, temporal/geographic multipliers, promo eligibility gates |
-| [`02_simulation_and_metrics.ipynb`](02_simulation_and_metrics.ipynb) | §6–§9 | **Yes** | Running a full simulation, comparing baseline and experiment phases, incrementality via the shared-draw design, and a full metric field reference |
-| [`03_ab_and_clv.ipynb`](03_ab_and_clv.ipynb) | §10–§12 | **Yes** | A/B delivery fee sensitivity sweeps, per-customer journey traces, and CLV validation (predicted vs actual revenue scatter and calibration) |
+| [`01_model_reference.ipynb`](01_model_reference.ipynb) | §0–§5 | No | Statistical model layer: RunConfig parameters, cohort distributions, purchase probability formula, temporal/geographic multipliers, promo eligibility gates, segment labels |
+| [`02_simulation_and_metrics.ipynb`](02_simulation_and_metrics.ipynb) | §6–§9 | **Yes** | Full simulation run, baseline / washout / experiment phases, incrementality, metric glossary (JSONB vs written spec, `active_customers_evaluated`), outcome column samples, dashboard-style revenue plots |
+| [`03_ab_and_clv.ipynb`](03_ab_and_clv.ipynb) | §10–§12 | **Yes** | A/B delivery fee sensitivity sweeps, per-customer journey traces, CLV validation, segment field note |
+| [`04_statistical_inference.ipynb`](04_statistical_inference.ipynb) | Spec §9 | No* | Wilson intervals and two-proportion z-test using `app/services/stats/inference.py` (same logic as `GET /api/runs/{id}/experiment-inference`); multi-seed batch via API or `scripts/run_batch_seeds.py` |
+| [`05_bayesian_experiment_inference.ipynb`](05_bayesian_experiment_inference.ipynb) | Inference | **Yes** | Runs a short simulation, loads experiment rollups via `load_experiment_arm_rollups` (same as the API), then frequentist vs Bayesian comparison + appendix toy counts; see `docs/mathematical-models.md` §10.3 |
+| [`06_executive_pricing_experiment.ipynb`](06_executive_pricing_experiment.ipynb) | Capstone | **Yes** | End-to-end narrative: `RunConfig` design, multi-seed variability, primary run with CLV holdout, aggregates, inference (`build_experiment_inference`), CLV calibration vs OLS benchmark, dynamic-pricing guide, executive summary |
 
-**Recommended execution order:** `01` → `02` → `03`. Notebooks 02 and 03 are independent of each other but both depend on having at least one completed run in the database.
+\*Pure-math cells need no DB; comparing to a live run requires PostgreSQL like notebook 02.
+
+**Recommended execution order:** `01` → `02` → `03` → `04` → `05` → `06`. Notebook `03` includes a database setup cell and bootstraps `run_id` / `cfg_main` from the §10 A/B run so it can execute standalone when PostgreSQL is available (running after `02` is still fine). Notebook `06` is standalone (imports DB + runs its own simulations).
+
+**CI:** `pytest tests/test_notebooks_execute.py` runs every notebook in this folder (see root README / `Agents.md`); use `SKIP_NOTEBOOK_TESTS=1` to skip locally without Postgres.
 
 ---
 
