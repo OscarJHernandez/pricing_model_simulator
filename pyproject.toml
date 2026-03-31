@@ -33,7 +33,11 @@ dev = [
   "statsmodels>=0.14.0",
   "scipy>=1.13.0",
   "matplotlib>=3.9.0",
+  "ipywidgets>=8.1.0",
+  "plotly>=5.24.0",
   "seaborn>=0.13.0",
+  "scikit-learn>=1.5.0",
+  "econml>=0.15.0",
 ]
 
 [tool.ruff]

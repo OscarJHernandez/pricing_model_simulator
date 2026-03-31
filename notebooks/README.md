@@ -2,7 +2,9 @@
 
 This folder contains Jupyter notebooks for exploring, validating, and analysing the pricing simulator. All notebooks import `app` modules directly — there is no duplicate simulation logic.
 
-**New to the repo?** See [`../docs/quickstart.md`](../docs/quickstart.md) for UI vs CLI vs notebook paths. For a concise description of basket totals, fees, promos, purchase probability, and experiment phases, see [`../docs/pricing-model.md`](../docs/pricing-model.md). For the same models in equation form (CLV, churn, cohort sampling, inference), see [`../docs/mathematical-models.md`](../docs/mathematical-models.md).
+**New to the repo?** See [`../docs/quickstart.md`](../docs/quickstart.md) for UI vs CLI vs notebook paths. For a concise description of basket totals, fees, promos, purchase probability, and experiment phases, see [`../docs/pricing-model.md`](../docs/pricing-model.md). For the same models in equation form (CLV, churn, cohort sampling, inference), see [`../docs/mathematical-models.md`](../docs/mathematical-models.md). For identification, incrementality vs ATE, and adjustment methods, see [`../docs/causal-inference.md`](../docs/causal-inference.md) (pairs with `07_causal_inference.ipynb`).
+
+**Authoring / editing notebooks:** Standards (motivation blocks, key insights, widgets, notation) live in [`SKILL_notebook_quality.md`](SKILL_notebook_quality.md).
 
 ---
 
@@ -58,10 +60,11 @@ These notebooks replace the previous monolithic `simulation_walkthrough.ipynb` a
 | [`04_statistical_inference.ipynb`](04_statistical_inference.ipynb) | Spec §9 | No* | Wilson intervals and two-proportion z-test using `app/services/stats/inference.py` (same logic as `GET /api/runs/{id}/experiment-inference`); multi-seed batch via API or `scripts/run_batch_seeds.py` |
 | [`05_bayesian_experiment_inference.ipynb`](05_bayesian_experiment_inference.ipynb) | Inference | **Yes** | Runs a short simulation, loads experiment rollups via `load_experiment_arm_rollups` (same as the API), then frequentist vs Bayesian comparison + appendix toy counts; see `docs/mathematical-models.md` §10.3 |
 | [`06_executive_pricing_experiment.ipynb`](06_executive_pricing_experiment.ipynb) | Capstone | **Yes** | End-to-end narrative: `RunConfig` design, multi-seed variability, primary run with CLV holdout, aggregates, inference (`build_experiment_inference`), CLV calibration vs OLS benchmark, dynamic-pricing guide, executive summary |
+| [`07_causal_inference.ipynb`](07_causal_inference.ipynb) | Causal inference | **Yes** | RCT identification, cluster-robust OLS/Logit, `build_experiment_inference` cross-check, oracle (`incremental_order` / `counterfactual_would_buy`), 8-seed ATE benchmark, toy DGP (IPW, hand AIPW, `LinearDRLearner` / `ForestDRLearner`), semi-synthetic confounded pseudo-treatment with overlap plots + trimmed IPW, `ForestDRLearner` HTE by segment. Uses `scikit-learn` and `econml` (`pip install -e ".[dev]"`). Runtime is higher than notebook `05` (multiple full runs + forests). |
 
 \*Pure-math cells need no DB; comparing to a live run requires PostgreSQL like notebook 02.
 
-**Recommended execution order:** `01` → `02` → `03` → `04` → `05` → `06`. Notebook `03` includes a database setup cell and bootstraps `run_id` / `cfg_main` from the §10 A/B run so it can execute standalone when PostgreSQL is available (running after `02` is still fine). Notebook `06` is standalone (imports DB + runs its own simulations).
+**Recommended execution order:** `01` → `02` → `03` → `04` → `05` → `06` → `07`. Notebook `03` includes a database setup cell and bootstraps `run_id` / `cfg_main` from the §10 A/B run so it can execute standalone when PostgreSQL is available (running after `02` is still fine). Notebooks `06` and `07` are standalone (each imports DB + runs its own simulations).
 
 **CI:** `pytest tests/test_notebooks_execute.py` runs every notebook in this folder (see root README / `Agents.md`); use `SKIP_NOTEBOOK_TESTS=1` to skip locally without Postgres.
 

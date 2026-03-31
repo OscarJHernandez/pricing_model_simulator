@@ -33,6 +33,8 @@ For explanations, troubleshooting, and options without Docker, see [Getting star
 - **Notebooks:** Walkthrough notebooks under `notebooks/` (including statistical inference) import the **same** `app` package as the API (no duplicate simulation logic). See [`notebooks/README.md`](notebooks/README.md).
 - **Deploy:** Example **Render** Blueprint in [`render.yaml`](render.yaml); start script runs migrations then Uvicorn.
 
+**Scope and non-goals (MVP):** This project is a learning and internal workbench for stochastic pricing simulation, not a hardened multi-tenant product. The HTTP API intentionally omits authentication, authorization, per-user rate limits, and abuse controls on expensive endpoints (for example batch runs); in production you would add an identity layer, quotas, and operational guardrails, or keep the service private behind a VPN. The README and deployment docs assume trusted callers for local development or similarly bounded environments.
+
 ---
 
 ## Prerequisites
@@ -229,6 +231,8 @@ Open files in `notebooks/`. See [`notebooks/README.md`](notebooks/README.md) for
 | `03_ab_and_clv.ipynb` | §10–§12 | A/B delivery fee sensitivity sweeps, customer journey traces, CLV validation (predicted vs actual). | **Yes** |
 | `04_statistical_inference.ipynb` | Spec §9 | Wilson intervals and two-proportion z-test (`app/services/stats/inference.py`); ties to batch runs and `GET .../experiment-inference`. | No* |
 | `05_bayesian_experiment_inference.ipynb` | Inference | Short simulation + rollups from DB; frequentist vs Bayesian (same path as `GET .../experiment-inference`); toy appendix. | **Yes** |
+| `06_executive_pricing_experiment.ipynb` | Capstone | Experiment design, multi-seed sweep, CLV holdout, inference, executive summary. | **Yes** |
+| `07_causal_inference.ipynb` | Causal inference | RCT estimators, oracle fields, multi-seed benchmark, IPW/AIPW, `econml` DR + HTE; see [`docs/causal-inference.md`](docs/causal-inference.md). | **Yes** |
 
 \*Pure-math cells need no DB; comparing to a live run needs PostgreSQL like notebook 02.
 

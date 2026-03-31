@@ -31,7 +31,7 @@ Notebook setup and order are documented in [`notebooks/README.md`](../notebooks/
 
 ### I want batch runs and statistical inference
 
-- **Notebooks:** [`04_statistical_inference.ipynb`](../notebooks/04_statistical_inference.ipynb) (Wilson + z-test; mostly no DB) and [`05_bayesian_experiment_inference.ipynb`](../notebooks/05_bayesian_experiment_inference.ipynb) (runs a short sim against PostgreSQL, then Beta–binomial comparison on real `daily_aggregates` rollups; same helpers as the API).
+- **Notebooks:** [`04_statistical_inference.ipynb`](../notebooks/04_statistical_inference.ipynb) (Wilson + z-test; mostly no DB) and [`05_bayesian_experiment_inference.ipynb`](../notebooks/05_bayesian_experiment_inference.ipynb) (runs a short sim against PostgreSQL, then Beta–binomial comparison on real `daily_aggregates` rollups; same helpers as the API). For **causal inference** on customer-day outcomes (RCT, IPW/doubly robust, `econml`), use [`07_causal_inference.ipynb`](../notebooks/07_causal_inference.ipynb) and read [`causal-inference.md`](causal-inference.md).
 - **API:** `POST /api/runs/batch` (same config, multiple seeds) and `GET /api/runs/{id}/experiment-inference` on a **completed** run (optional `prior_alpha`, `prior_beta`; response includes a `bayesian` block).
 - **CLI:** [`scripts/run_batch_seeds.py`](../scripts/run_batch_seeds.py) for synchronous multi-seed runs against your database.
 

@@ -1,6 +1,6 @@
 # Mathematical models reference
 
-This document states the **equations implemented in code** for the pricing simulator: cohort sampling, daily purchase probability, churn, predictive customer lifetime value (CLV), and experiment-phase statistics. For narrative context and file pointers, see [`docs/pricing-model.md`](pricing-model.md) and [`app/domain/customer.py`](../app/domain/customer.py).
+This document states the **equations implemented in code** for the pricing simulator: cohort sampling, daily purchase probability, churn, predictive customer lifetime value (CLV), experiment-phase statistics, and **causal estimands** (§11). For narrative context and file pointers, see [`docs/pricing-model.md`](pricing-model.md), [`docs/causal-inference.md`](causal-inference.md), and [`app/domain/customer.py`](../app/domain/customer.py).
 
 **Math rendering:** Inline math uses single dollar signs (`$…$`); display equations use `$$` on their own lines before and after the block. [GitHub-flavored Markdown](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions) renders these on **github.com**. In **VS Code / Cursor**, the built-in Markdown preview often does **not** typeset math; install an extension such as **Markdown+Math** (or **LaTeX Workshop** with math support) and use that preview, or view the file on GitHub.
 
@@ -289,7 +289,43 @@ The same **customer-day correlation caveat** as in §10.2 applies: independent B
 
 ---
 
-## 11. Holdout validation revenue (actual)
+## 11. Causal estimands (customer-day ATE, IPW, doubly robust)
+
+This subsection matches the notation in [`docs/causal-inference.md`](causal-inference.md) and [`notebooks/07_causal_inference.ipynb`](../notebooks/07_causal_inference.ipynb). It is **not** a duplicate of full `econml` theory; it fixes repo-native definitions.
+
+### 11.1 Customer-day ITT / ATE under randomization
+
+Let \(Z_i \in \{0,1\}\) indicate assignment to variant (\(1\)) vs control (\(0\)) in the experiment phase, and \(Y_i\) a customer-day outcome (e.g. purchase indicator). Under randomization, \(Z \perp X\) for pre-treatment traits \(X\). The **average treatment effect** (identified with the ITT of assignment) is
+
+$$
+\tau = \mathbb{E}[Y_i \mid Z_i=1] - \mathbb{E}[Y_i \mid Z_i=0].
+$$
+
+An **unbiased** plug-in estimator is the difference in sample means across arms on experiment-phase rows. Because the same `customer_id` appears on multiple days, standard errors often **cluster** by customer.
+
+### 11.2 Propensity score and IPW (observational-style treatment \(T\))
+
+For a **non-randomized** binary treatment \(T_i \in \{0,1\}\) and covariates \(X_i\), define the **propensity score** \(e(X_i) = \mathbb{P}(T_i=1 \mid X_i)\). Under **unconfoundedness** \(Y(0), Y(1) \perp T \mid X\) and **overlap** \(0 < e(X) < 1\) a.s., the ATE satisfies the **inverse probability weighting** representation. A common **stabilized** weight uses \(\tilde w_i = T_i / \hat e_i + (1-T_i) / (1-\hat e_i)\) (after fitting \(\hat e\) on the sample); the **Hájek**-style normalized AIPW numerator uses weights centered so that \(\sum_i \tilde w_i T_i\) and \(\sum_i \tilde w_i (1-T_i)\) normalize group means.
+
+**Trimming:** Restricting to units with \(\hat e_i \in [\varepsilon, 1-\varepsilon]\) mitigates variance explosion when overlap is weak.
+
+### 11.3 Doubly robust (AIPW) skeleton
+
+Let \(\hat m(z,x)\) predict \(\mathbb{E}[Y \mid T=z, X=x]\) and \(\hat e(x)\) predict \(\mathbb{P}(T=1 \mid X=x)\). A standard **doubly robust** ATE plug-in (schematic) is
+
+$$
+\hat\tau_{\mathrm{DR}} = \frac{1}{n}\sum_{i=1}^n \Bigl[ \hat m(1,X_i) - \hat m(0,X_i) + \frac{T_i (Y_i - \hat m(1,X_i))}{\hat e(X_i)} - \frac{(1-T_i)(Y_i - \hat m(0,X_i))}{1-\hat e(X_i)} \Bigr],
+$$
+
+with conventions to clip \(\hat e\) away from \(0\) and \(1\). **Double robustness:** if either \(\hat m\) or \(\hat e\) is correct (and regularity holds), \(\hat\tau_{\mathrm{DR}}\) is consistent for \(\tau\). Cross-fitting (sample splitting) reduces bias from overfitting nuisances; [`econml`](https://econml.azurewebsites.net/) DR learners implement this pattern.
+
+### 11.4 Relation to incrementality (§9)
+
+Section **§9** defines **incremental** purchase on variant rows via a **shared uniform** and counterfactual control price. That quantity is an **excursion** contrast on assigned variant days; §11.1’s \(\tau\) is a **between-arm** contrast over all experiment customer-days. They answer different causal questions.
+
+---
+
+## 12. Holdout validation revenue (actual)
 
 When `clv_validation_days > 0`, the engine extends the simulation at baseline pricing without new churn. **Actual** validation revenue per customer is accumulated in the database for calibration against `predicted_clv`; it is not another closed-form formula in this doc.
 
@@ -302,4 +338,5 @@ When `clv_validation_days > 0`, the engine extends the simulation at baseline pr
 | Purchase probability, churn, CLV | [`app/domain/customer.py`](../app/domain/customer.py) |
 | Cohort sampling, basket, prices, shared draw | [`app/services/simulation/engine.py`](../app/services/simulation/engine.py) |
 | Wilson / z-test / Beta–binomial Bayesian | [`app/services/stats/inference.py`](../app/services/stats/inference.py) |
+| Causal estimands, IPW/DR narrative | [`docs/causal-inference.md`](causal-inference.md), [`notebooks/07_causal_inference.ipynb`](../notebooks/07_causal_inference.ipynb) |
 | Tunable parameters | [`app/schemas/run_config.py`](../app/schemas/run_config.py) |

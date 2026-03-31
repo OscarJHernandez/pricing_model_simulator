@@ -2,7 +2,7 @@
 
 This repository implements the MVP described in `pricing_simulator_tech_spec_concise_v4.txt`: a stochastic, customer-level pricing simulator with baseline and experiment phases, PostgreSQL persistence, FastAPI, a React workbench UI, and validation notebooks.
 
-**Orientation (any reader):** [`README.md`](README.md) has the 5-minute checklist and full local setup. [`docs/quickstart.md`](docs/quickstart.md) is a short “choose your path” guide (UI vs CLI vs notebooks vs batch/inference). [`docs/pricing-model.md`](docs/pricing-model.md) explains how basket, fees, promos, and purchase probability are implemented. [`docs/mathematical-models.md`](docs/mathematical-models.md) states the same models in equation form (CLV, demand, churn, cohort draws, Wilson / z-test, Beta–binomial Bayesian inference). Spec deltas vs code: [`docs/spec-mapping.md`](docs/spec-mapping.md).
+**Orientation (any reader):** [`README.md`](README.md) has the 5-minute checklist and full local setup. [`docs/quickstart.md`](docs/quickstart.md) is a short “choose your path” guide (UI vs CLI vs notebooks vs batch/inference). [`docs/pricing-model.md`](docs/pricing-model.md) explains how basket, fees, promos, and purchase probability are implemented. [`docs/mathematical-models.md`](docs/mathematical-models.md) states the same models in equation form (CLV, demand, churn, cohort draws, Wilson / z-test, Beta–binomial Bayesian inference, causal estimands §11). [`docs/causal-inference.md`](docs/causal-inference.md) ties identification and adjustment methods to simulation outputs. Spec deltas vs code: [`docs/spec-mapping.md`](docs/spec-mapping.md).
 
 ## Stack
 
@@ -52,9 +52,11 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
 - **Production-style API + built UI:** build the frontend (`cd frontend && npm run build`), set `STATIC_DIR=frontend/dist` in `.env`, then start Uvicorn as above  
 - **Migrations:** `alembic revision --autogenerate -m "message"` (when models change) then `alembic upgrade head`  
 - **Quick analysis (recommended first run):** `python scripts/quick_analysis.py` — runs a full simulation and prints P&L, CLV calibration, and next-step pointers. Accepts `--seed N`, `--customers N`, `--horizon N`, `--clv-validation-days N`.  
-- **Notebooks:** from repo root with venv active and `pip install -e .`, open files under `notebooks/` in Jupyter. Start with `01_model_reference.ipynb` → `02_simulation_and_metrics.ipynb` → `03_ab_and_clv.ipynb` → `04_statistical_inference.ipynb` → `05_bayesian_experiment_inference.ipynb` → `06_executive_pricing_experiment.ipynb` (capstone). See `notebooks/README.md` for full instructions.
+- **Notebooks:** from repo root with venv active and `pip install -e .`, open files under `notebooks/` in Jupyter. Start with `01_model_reference.ipynb` → `02_simulation_and_metrics.ipynb` → `03_ab_and_clv.ipynb` → `04_statistical_inference.ipynb` → `05_bayesian_experiment_inference.ipynb` → `06_executive_pricing_experiment.ipynb` (capstone) → `07_causal_inference.ipynb` (causal estimands, DR/ML). See `notebooks/README.md` for full instructions.
 
 ## Notebook roles
+
+Quality standards for authoring/editing notebooks: [`notebooks/SKILL_notebook_quality.md`](notebooks/SKILL_notebook_quality.md).
 
 | Notebook | Role |
 |----------|------|
@@ -64,6 +66,7 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
 | `04_statistical_inference.ipynb` | **Inference (spec §9)** — Wilson CIs, two-proportion z-test via `app/services/stats/inference.py`; complements `GET /api/runs/{id}/experiment-inference` and batch seeds. Mostly no DB. |
 | `05_bayesian_experiment_inference.ipynb` | **Bayesian inference** — runs a short sim, loads `daily_aggregates` via `load_experiment_arm_rollups` (same as API); frequentist vs Beta–binomial; uniform vs Jeffreys. Requires PostgreSQL. |
 | `06_executive_pricing_experiment.ipynb` | **Capstone** — end-to-end experiment design, multi-seed sweep, primary run with CLV holdout, aggregates, `build_experiment_inference`, CLV vs OLS benchmark, dynamic-pricing guide, executive summary. Requires PostgreSQL. |
+| `07_causal_inference.ipynb` | **Causal inference** — RCT identification, cluster-robust GLM, oracle (`incremental_order` / shared draw), multi-seed ATE benchmark, toy DGP (IPW / hand AIPW / `econml` DR), semi-synthetic confounded pseudo-treatment with overlap diagnostics, HTE via `ForestDRLearner`. Requires PostgreSQL and `pip install -e ".[dev]"` (`scikit-learn`, `econml`). |
 | `customer_model_validation.ipynb` | **Regression test** — assertion-based validation of `compute_purchase_probability` and Bernoulli draws. No database needed. Run after changes to `app/domain/customer.py`. |
 | `repeat_purchase_validation.ipynb` | **Behavioural test** — multi-day loop verifying retention score accumulation and decay. No database needed. Run after changes to retention logic. |
 | `ab_test_analysis.ipynb` | **Experiment analysis** — delivery fee sensitivity, incremental lift, and revenue trade-off charts across multiple A/B runs. Requires PostgreSQL. |
@@ -102,6 +105,8 @@ Alembic revision files under `alembic/versions/` are excluded from Ruff/Mypy to 
 | `notebooks/04_statistical_inference.ipynb` | Spec §9 narrative: Wilson intervals, z-test, ties to batch API |
 | `notebooks/05_bayesian_experiment_inference.ipynb` | Bayesian vs frequentist experiment inference; ties to `GET .../experiment-inference` |
 | `notebooks/06_executive_pricing_experiment.ipynb` | Capstone: design, multi-seed sweep, CLV holdout, inference, OLS benchmark, ML/dynamic-pricing guide (requires DB) |
+| `notebooks/07_causal_inference.ipynb` | Causal track: identification, cluster SEs, oracle fields, multi-seed RCT, IPW/AIPW, econml DR + HTE, semi-synthetic overlap (requires DB + dev extras) |
+| `docs/causal-inference.md` | Causal estimands, overlap, IPW/DR narrative; maps to engine columns and notebook 07 |
 | `docs/spec-mapping.md` | Tech spec v4 vs implementation (API prefix, washout, JSONB metrics, batch/inference) |
 | `docs/quickstart.md` | First-hour orientation: UI, `quick_analysis.py`, notebooks 01–04, batch/inference pointers |
 | `docs/pricing-model.md` | Pricing and demand model: basket, phases, promos, purchase probability, incrementality |

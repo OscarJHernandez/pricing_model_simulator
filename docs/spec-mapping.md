@@ -26,6 +26,12 @@ The spec lists flat columns on `daily_aggregates`. Here, numeric rollups live in
 - **`GET /api/runs/{run_id}/experiment-inference`** — pooled experiment-phase totals, Wilson intervals on conversion, two-proportion z-test, and a **Beta–binomial Bayesian** block (`prior_alpha`, `prior_beta` query params; see `app/services/stats/inference.py`).
 - **CLI:** `scripts/run_batch_seeds.py` runs multiple seeds **synchronously** against your database.
 
+## Causal inference (extension beyond the spec)
+
+- **[`docs/causal-inference.md`](causal-inference.md)** — identification on randomized experiment arms, cross-arm ATE vs incremental excursion estimands, overlap/IPW/DR narrative, mapping to `daily_customer_outcomes` / `experiment_assignments`.
+- **[`notebooks/07_causal_inference.ipynb`](../notebooks/07_causal_inference.ipynb)** — executable track: customer-day models with cluster inference, multi-seed RCT benchmarks, toy DGP, semi-synthetic confounding, `econml` learners (requires `pip install -e ".[dev]"`).
+- **[`docs/mathematical-models.md`](mathematical-models.md) §11** — notation for customer-day ATE, propensity weighting, and a doubly robust skeleton.
+
 ## Customer segment and outcomes
 
 `customers.segment` is set at cohort creation from budget, `price_threshold`, and `buy_propensity` (`derive_segment` in `app/domain/customer.py`). `daily_customer_outcomes` stores **`purchase_count_after_event`** and **`days_since_last_purchase`** per row for analysis exports.
