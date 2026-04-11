@@ -6,7 +6,13 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
 
 ## Out of scope (contributor expectations)
 
-The `app/` package and MVP are **customer-order pricing simulation** (basket, fees, promos, stochastic purchase, churn, CLV), not a marketplace ads stack. Do not expect ad auctions, pCTR/pCVR serving, or CPA/CPO bidding logic here. Notebook ML for causal estimands (optional `econml` / scikit-learn paths in `07_causal_inference.ipynb`) supports **analysis** of experiment outputs, not merchant ad automation. See README **Scope and non-goals** for the same boundaries in user-facing language.
+The `app/` package and MVP are **customer-order pricing simulation** (basket, fees, promos, stochastic purchase, churn, CLV), not a marketplace ads stack. Do not expect:
+
+- **Ad auctions** or bid-based allocation.
+- **pCTR/pCVR** serving for self-serve merchant ads.
+- **CPA/CPO** bidding logic or ad spend pacing.
+
+Notebook ML for causal estimands (optional `econml` / scikit-learn paths in `07_causal_inference.ipynb`) supports **analysis** of experiment outputs, not merchant ad automation. See README **Scope and non-goals** for the same boundaries in user-facing language (including `campaign_budget` as promo discount spend, not ad pacing).
 
 ## Stack
 
