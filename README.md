@@ -35,6 +35,14 @@ For explanations, troubleshooting, and options without Docker, see [Getting star
 
 **Scope and non-goals (MVP):** This project is a learning and internal workbench for stochastic pricing simulation, not a hardened multi-tenant product. The HTTP API intentionally omits authentication, authorization, per-user rate limits, and abuse controls on expensive endpoints (for example batch runs); in production you would add an identity layer, quotas, and operational guardrails, or keep the service private behind a VPN. The README and deployment docs assume trusted callers for local development or similarly bounded environments.
 
+This MVP is **not** a programmatic advertising product. In particular:
+
+- **No ad auctions** or bid-based allocation across advertisers or impressions.
+- **No pCTR/pCVR** models trained and served for self-serve merchant ads.
+- **No CPA/CPO** bid optimizers or ad spend pacing.
+
+Notebook workflows may use machine learning for **causal inference** on simulated pricing experiments (for example in `07_causal_inference.ipynb`); that supports analysis of experiment outputs, not an ad ranking or bidding layer. The `campaign_budget` run setting caps **promotional discount** spend in experiments, not advertising pacing.
+
 ---
 
 ## Prerequisites
