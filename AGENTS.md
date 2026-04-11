@@ -4,6 +4,10 @@ This repository implements the MVP described in `pricing_simulator_tech_spec_con
 
 **Orientation (any reader):** [`README.md`](README.md) has the 5-minute checklist and full local setup. [`docs/quickstart.md`](docs/quickstart.md) is a short “choose your path” guide (UI vs CLI vs notebooks vs batch/inference). [`docs/pricing-model.md`](docs/pricing-model.md) explains how basket, fees, promos, and purchase probability are implemented. [`docs/mathematical-models.md`](docs/mathematical-models.md) states the same models in equation form (CLV, demand, churn, cohort draws, Wilson / z-test, Beta–binomial Bayesian inference, causal estimands §11). [`docs/causal-inference.md`](docs/causal-inference.md) ties identification and adjustment methods to simulation outputs. Spec deltas vs code: [`docs/spec-mapping.md`](docs/spec-mapping.md).
 
+## Out of scope (contributor expectations)
+
+The `app/` package and MVP are **customer-order pricing simulation** (basket, fees, promos, stochastic purchase, churn, CLV), not a marketplace ads stack. Do not expect ad auctions, pCTR/pCVR serving, or CPA/CPO bidding logic here. Notebook ML for causal estimands (optional `econml` / scikit-learn paths in `07_causal_inference.ipynb`) supports **analysis** of experiment outputs, not merchant ad automation. See README **Scope and non-goals** for the same boundaries in user-facing language.
+
 ## Stack
 
 - **Backend:** Python 3.11+, FastAPI, Uvicorn, SQLAlchemy 2, Alembic, PostgreSQL (psycopg3), NumPy/Pandas  
