@@ -47,4 +47,4 @@ API tables and paths are in the README [API overview](../README.md#api-overview)
 | [`docs/mathematical-models.md`](mathematical-models.md) | Equations for CLV, demand, churn, cohort sampling, Wilson / z-test / Bayesian Beta–binomial |
 | [`pricing_simulator_tech_spec_concise_v4.txt`](../pricing_simulator_tech_spec_concise_v4.txt) | Product spec and acceptance criteria |
 | [`docs/spec-mapping.md`](spec-mapping.md) | Spec v4 vs this codebase (API prefix, washout, JSONB metrics, batch, inference) |
-| [`Agents.md`](../Agents.md) | Stack, commands, layout, CLV model notes, deployment — for contributors and tooling |
+| [`AGENTS.md`](../AGENTS.md) | Stack, commands, layout, CLV model notes, deployment — for contributors and tooling |

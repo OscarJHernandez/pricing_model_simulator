@@ -81,7 +81,7 @@ Pricing and demand interact with **lifecycle** state:
 
 - **Churn:** Daily churn probability scales with `retention_score` ([`compute_churn_probability`](../app/domain/customer.py)); high retention can drive churn to zero.
 - **After a purchase:** [`register_purchase`](../app/domain/customer.py) updates revenue, counts, and bumps `retention_score` (with cap); time since last purchase decays retention between orders.
-- **Predictive CLV:** [`compute_predictive_clv`](../app/domain/customer.py) uses a discounted geometric-style series combining daily purchase probability (at a customer-specific typical price), churn, and discount rate. Tunable fields are on `RunConfig` (see [Agents.md](../Agents.md) and README for CLV defaults).
+- **Predictive CLV:** [`compute_predictive_clv`](../app/domain/customer.py) uses a discounted geometric-style series combining daily purchase probability (at a customer-specific typical price), churn, and discount rate. Tunable fields are on `RunConfig` (see [AGENTS.md](../AGENTS.md) and README for CLV defaults).
 
 ---
 
@@ -94,5 +94,5 @@ Pricing and demand interact with **lifecycle** state:
 | [notebooks/01_model_reference.ipynb](../notebooks/01_model_reference.ipynb) | Narrative walkthrough of parameters and formula (sections 0–5). |
 | [app/schemas/run_config.py](../app/schemas/run_config.py) | All tunable fees, promo flags, horizon, phases, and CLV-related fields. |
 | [docs/spec-mapping.md](spec-mapping.md) | Spec v4 vs implementation (API prefix, washout, JSONB metrics, deprecated fields). |
-| [Agents.md](../Agents.md) | Contributor layout, CLV summary, deployment. |
+| [AGENTS.md](../AGENTS.md) | Contributor layout, CLV summary, deployment. |
 | [app/services/simulation/engine.py](../app/services/simulation/engine.py) | Daily loop: basket, price breakdown, probability, purchase, persistence. |

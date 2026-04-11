@@ -2,7 +2,7 @@
 
 A **learning and validation** web app that simulates **customer-level pricing** over many virtual days. Customers are generated with random traits, prices follow baseline and experiment policies (for example different delivery fees), purchases are **probabilistic**, and results are stored in **PostgreSQL** and shown in a **React workbench** UI.
 
-The full product requirements live in [`pricing_simulator_tech_spec_concise_v4.txt`](pricing_simulator_tech_spec_concise_v4.txt). Implementation deltas (API `/api` prefix, washout phase, JSONB metrics, batch runs, inference endpoint) are summarized in [`docs/spec-mapping.md`](docs/spec-mapping.md). **First-hour orientation:** [`docs/quickstart.md`](docs/quickstart.md). **How pricing and demand work in code:** [`docs/pricing-model.md`](docs/pricing-model.md). **Equations (CLV, demand, churn, inference):** [`docs/mathematical-models.md`](docs/mathematical-models.md). Day-to-day commands and conventions for contributors (including AI assistants) are in [`Agents.md`](Agents.md).
+The full product requirements live in [`pricing_simulator_tech_spec_concise_v4.txt`](pricing_simulator_tech_spec_concise_v4.txt). Implementation deltas (API `/api` prefix, washout phase, JSONB metrics, batch runs, inference endpoint) are summarized in [`docs/spec-mapping.md`](docs/spec-mapping.md). **First-hour orientation:** [`docs/quickstart.md`](docs/quickstart.md). **How pricing and demand work in code:** [`docs/pricing-model.md`](docs/pricing-model.md). **Equations (CLV, demand, churn, inference):** [`docs/mathematical-models.md`](docs/mathematical-models.md). Day-to-day commands and conventions for contributors (including AI assistants) are in [`AGENTS.md`](AGENTS.md).
 
 ---
 
@@ -261,7 +261,7 @@ pytest tests/ -q
 
 ## Deploying (Render)
 
-See [`render.yaml`](render.yaml) and the **Deployment** section in [`Agents.md`](Agents.md). Typical flow:
+See [`render.yaml`](render.yaml) and the **Deployment** section in [`AGENTS.md`](AGENTS.md). Typical flow:
 
 1. Link a **PostgreSQL** instance and set `DATABASE_URL` (or use the Blueprint database).
 2. **Build:** install Python package, then `cd frontend && npm install && npm run build`.
@@ -309,5 +309,5 @@ If your host’s Python build image does not include **Node**, build the fronten
 - **[`docs/pricing-model.md`](docs/pricing-model.md)** — how basket, fees, promos, and purchase probability fit together  
 - **[`docs/mathematical-models.md`](docs/mathematical-models.md)** — equations for CLV, purchase probability, churn, cohort sampling, and inference statistics  
 - **[`pricing_simulator_tech_spec_concise_v4.txt`](pricing_simulator_tech_spec_concise_v4.txt)** — product spec and acceptance criteria  
-- **[`Agents.md`](Agents.md)** — contributor/agent guide, conventions, non-negotiables  
+- **[`AGENTS.md`](AGENTS.md)** — contributor/agent guide, conventions, non-negotiables  
 - **[`.env.example`](.env.example)** — environment template  

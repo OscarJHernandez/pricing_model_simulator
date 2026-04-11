@@ -1,6 +1,6 @@
 # Pricing Simulator — frontend (React + TypeScript + Vite)
 
-This app is the **workbench UI** for the pricing simulator (scenario builder, run summary, charts). Repo-wide docs: [`../README.md`](../README.md) (setup and API), [`../docs/quickstart.md`](../docs/quickstart.md) (first-hour paths), [`../docs/pricing-model.md`](../docs/pricing-model.md) (pricing and demand model), [`../docs/mathematical-models.md`](../docs/mathematical-models.md) (equations for CLV, demand, churn, inference), [`../Agents.md`](../Agents.md) (contributor commands).
+This app is the **workbench UI** for the pricing simulator (scenario builder, run summary, charts). Repo-wide docs: [`../README.md`](../README.md) (setup and API), [`../docs/quickstart.md`](../docs/quickstart.md) (first-hour paths), [`../docs/pricing-model.md`](../docs/pricing-model.md) (pricing and demand model), [`../docs/mathematical-models.md`](../docs/mathematical-models.md) (equations for CLV, demand, churn, inference), [`../AGENTS.md`](../AGENTS.md) (contributor commands).
 
 ---
 

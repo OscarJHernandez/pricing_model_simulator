@@ -66,7 +66,7 @@ These notebooks replace the previous monolithic `simulation_walkthrough.ipynb` a
 
 **Recommended execution order:** `01` → `02` → `03` → `04` → `05` → `06` → `07`. Notebook `03` includes a database setup cell and bootstraps `run_id` / `cfg_main` from the §10 A/B run so it can execute standalone when PostgreSQL is available (running after `02` is still fine). Notebooks `06` and `07` are standalone (each imports DB + runs its own simulations).
 
-**CI:** `pytest tests/test_notebooks_execute.py` runs every notebook in this folder (see root README / `Agents.md`); use `SKIP_NOTEBOOK_TESTS=1` to skip locally without Postgres.
+**CI:** `pytest tests/test_notebooks_execute.py` runs every notebook in this folder (see root README / `AGENTS.md`); use `SKIP_NOTEBOOK_TESTS=1` to skip locally without Postgres.
 
 ---
 

@@ -115,6 +115,7 @@ Alembic revision files under `alembic/versions/` are excluded from Ruff/Mypy to 
 | `notebooks/repeat_purchase_validation.ipynb` | Multi-day retention decay behavioural sanity check |
 | `notebooks/ab_test_analysis.ipynb` | A/B experiment analysis and delivery fee sensitivity charts |
 | `notebooks/README.md` | Execution instructions, notebook index, and model changelog |
+| `AGENTS.md` (repo root) | This guide — stack, commands, notebook roles, layout index, CLV notes, deployment |
 | `frontend/` | React workbench |
 | `alembic/versions/` | Schema migrations |
 | `scripts/quick_analysis.py` | One-command quickstart: run a simulation and print P&L, CLV calibration, churn summary |
@@ -168,4 +169,4 @@ The CLV model lives entirely in `app/domain/customer.py` and `app/services/simul
 
 ## Cursor / AI tooling
 
-Some tools look for `AGENTS.md` (uppercase). This project uses **`Agents.md`** at the repo root; symlink or duplicate if your workflow expects the other name.
+Contributor and agent instructions live in **`AGENTS.md`** at the repository root (common filename for Cursor and similar tools). Point rules or automation at this path.
